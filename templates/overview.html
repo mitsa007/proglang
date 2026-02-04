@@ -1,0 +1,77 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FitTrack Pro - Overview</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <div class="logo-container">
+                <img src="https://storage.googleapis.com/aai-web-template-images/fit-track-pro-logo.png" alt="FitTrack Pro" class="logo">
+                <h1>FitTrack Pro</h1>
+            </div>
+            <nav>
+                <ul>
+                    <li class="active"><a href="{{ url_for('overview') }}">Overview</a></li>
+                    <li><a href="{{ url_for('workout') }}">Workout</a></li>
+                    <li><a href="{{ url_for('meals') }}">Meals</a></li>
+                    <li><a href="{{ url_for('progress') }}">Progress</a></li>
+                    <li><a href="{{ url_for('profile') }}">Profile</a></li>
+                </ul>
+            </nav>
+        </div>
+        <div class="main-content">
+            <header>
+                <h2>Welcome back, {{ user.name }}! 👋</h2>
+            </header>
+            <div class="overview-grid">
+                <div class="card">
+                    <div class="card-body">
+                        <h3>🔥 Calories Burned</h3>
+                        <p>{{ calories_burned }}</p>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-body">
+                        <h3>🏋️ Workouts</h3>
+                        <p>{{ workout_count }}</p>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-body">
+                        <h3>🍽️ Meals Logged</h3>
+                        <p>{{ meal_count }}</p>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-body">
+                        <h3>⚡ Avg Intensity</h3>
+                        <p>{{ avg_intensity }}</p>
+                    </div>
+                </div>
+                <div class="card full-width">
+                    <div class="card-body">
+                        <h3>📊 Weekly Activity</h3>
+                        <canvas id="weeklyActivityChart"></canvas>
+                    </div>
+                </div>
+                <div class="card full-width">
+                    <div class="card-body">
+                        <h3>🎯 Goal Progress</h3>
+                        <div class="progress-circle">
+                            <p>{{ progress_percentage }}%</p>
+                        </div>
+                        <p>{{ progress_message }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>

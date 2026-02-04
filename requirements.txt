@@ -1,6 +1,4 @@
-# Dev environment
-pip
-autopep8
-
-# App
 flask
+flask-sqlalchemy
+flask-login
+scikit-learn
