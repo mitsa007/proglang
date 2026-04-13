@@ -1,70 +1,140 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FitTrack Pro - Meal Tracker</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VitCheck — Meal Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <div class="container">
-        <div class="sidebar">
-            <div class="logo-container">
-                <img src="https://storage.googleapis.com/aai-web-template-images/fit-track-pro-logo.png" alt="FitTrack Pro" class="logo">
-                <h1>FitTrack Pro</h1>
-            </div>
-            <nav>
-                <ul>
-                    <li><a href="{{ url_for('overview') }}">Overview</a></li>
-                    <li><a href="{{ url_for('workout') }}">Workout</a></li>
-                    <li class="active"><a href="{{ url_for('meals') }}">Meals</a></li>
-                    <li><a href="{{ url_for('progress') }}">Progress</a></li>
-                    <li><a href="{{ url_for('profile') }}">Profile</a></li>
-                </ul>
-            </nav>
+  <div class="sidebar-overlay" id="sidebar-overlay"></div>
+  <button class="menu-toggle" id="menu-toggle" aria-label="Toggle navigation">
+    <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+  </button>
+
+  <div class="app-wrapper">
+    <aside class="sidebar" id="sidebar">
+      <div class="logo-container">
+        <img src="{{ url_for('static', filename='images/vitcheck_logo.png') }}" alt="VitCheck" class="logo">
+        <h1>VitCheck</h1>
+      </div>
+      <nav><ul>
+        <li><a href="{{ url_for('overview') }}"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Overview</a></li>
+        <li><a href="{{ url_for('workout') }}"><svg viewBox="0 0 24 24"><path d="M6.5 6.5h11M17 6.5V17a2.5 2.5 0 0 1-5 0V7a2.5 2.5 0 0 0-5 0v10.5"/><circle cx="6.5" cy="6.5" r="1.5"/><circle cx="17.5" cy="6.5" r="1.5"/></svg>Workout</a></li>
+        <li class="active"><a href="{{ url_for('meals') }}"><svg viewBox="0 0 24 24"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>Meals</a></li>
+        <li><a href="{{ url_for('progress') }}"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Progress</a></li>
+      </ul></nav>
+    </aside>
+
+    <main class="main-content fade-in">
+      <div class="page-header">
+        <div>
+          <h2><svg viewBox="0 0 24 24"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>Meal Tracker</h2>
+          <span class="breadcrumb">Track your daily nutrition</span>
         </div>
-        <div class="main-content">
-            <header>
-                <h2>Meal Tracker 🍽️</h2>
-            </header>
-            <div class="card">
-                <div class="card-body">
-                    <h3>Log Your Meal</h3>
-                    <form action="{{ url_for('add_meal') }}" method="post">
-                        <div class="form-group">
-                            <label for="meal-type">Meal Type</label>
-                            <select id="meal-type" name="meal-type">
-                                <option value="breakfast">Breakfast</option>
-                                <option value="lunch">Lunch</option>
-                                <option value="dinner">Dinner</option>
-                                <option value="snack">Snack</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="description">Description</label>
-                            <input type="text" id="description" name="description" placeholder="e.g., Grilled chicken salad">
-                        </div>
-                        <div class="form-group">
-                            <label for="calories">Calories</label>
-                            <input type="number" id="calories" name="calories" placeholder="350">
-                        </div>
-                        <button type="submit" class="btn">Add Meal</button>
-                    </form>
-                </div>
+        <div class="header-actions">
+          <div class="avatar-dropdown">
+            <button class="avatar-btn" id="avatar-btn" type="button">
+              {% if current_user.photo_url %}<img src="{{ current_user.photo_url }}" alt="Profile">
+              {% else %}<svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>{% endif %}
+            </button>
+            <div class="dropdown-menu" id="dropdown-menu">
+              <a href="{{ url_for('profile') }}"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Profile</a>
+              <div class="dropdown-divider"></div>
+              <button type="button" id="dark-mode-btn"><svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>Dark Mode</button>
+              <a href="{{ url_for('logout') }}"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Sign Out</a>
             </div>
-            <div class="card">
-                <div class="card-body">
-                    <h3>Today's Meals</h3>
-                    <ul class="meal-list">
-                        {% for meal in meals %}
-                        <li>{{ meal.meal_type }}: {{ meal.description }} ({{ meal.calories }} kcal)</li>
-                        {% endfor %}
-                    </ul>
-                </div>
-            </div>
+          </div>
         </div>
-    </div>
-    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+      </div>
+
+      <div class="overview-grid" style="grid-template-columns: minmax(280px,380px) 1fr; align-items: start;">
+
+        <!-- Log Meal Form -->
+        <div class="card">
+          <div class="card-body">
+            <h3><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>Log Meal</h3>
+            <form action="{{ url_for('add_meal') }}" method="post" style="margin-top:.75rem">
+              <div class="form-group">
+                <label for="meal_name">Meal Name</label>
+                <input type="text" id="meal_name" name="meal_name" placeholder="e.g., Breakfast, Lunch..." required>
+              </div>
+              <div class="form-grid-2">
+                <div class="form-group">
+                  <label for="m-date">Date</label>
+                  <input type="date" id="m-date" name="date" value="{{ today }}" max="{{ today }}" required>
+                </div>
+                <div class="form-group">
+                  <label for="m-time">Time</label>
+                  <input type="time" id="m-time" name="time" value="{{ now }}" required>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="calories">Calories (kcal)</label>
+                <input type="number" id="calories" name="calories" placeholder="Enter calories" min="0" required>
+              </div>
+              <button type="submit" class="btn" id="log-meal-btn">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                Log Meal
+              </button>
+            </form>
+
+            <!-- Today's calorie bar -->
+            <div class="cal-bar-wrap">
+              <div class="cal-bar-header">
+                <span class="cal-bar-title">
+                  <svg viewBox="0 0 24 24"><path d="M12 2c0 6-8 9-8 14a8 8 0 0 0 16 0c0-5-8-8-8-14z"/></svg>
+                  Today's Calories
+                </span>
+                <span class="cal-bar-numbers"><strong>{{ today_calories }}</strong> / {{ calorie_goal }} cal</span>
+              </div>
+              <div class="cal-bar">
+                <div class="cal-bar-fill" style="width:{{ [((today_calories / calorie_goal) * 100)|int, 100]|min }}%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Today's Meals List -->
+        <div class="card">
+          <div class="card-body">
+            <div class="card-body-header">
+              <h3 style="margin-bottom:0"><svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>Today's Meals</h3>
+              {% if today_meals %}
+              <button class="btn-secondary" id="edit-meal-btn" type="button">Edit</button>
+              {% endif %}
+            </div>
+            {% if today_meals %}
+              <ul class="item-list" id="meal-list">
+                {% for m in today_meals %}
+                <li>
+                  <div class="item-left">
+                    <svg viewBox="0 0 24 24"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+                    <div class="item-detail">
+                      <span class="item-title">{{ m.meal_name }}</span>
+                      <span class="item-meta">({{ m.calories }} cal) &middot; {{ m.time }}</span>
+                    </div>
+                  </div>
+                  <form action="{{ url_for('delete_meal', doc_id=m.id) }}" method="post" style="display:inline;">
+                    <button class="btn-delete" type="submit" title="Delete">&#8722;</button>
+                  </form>
+                </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <div class="empty-state">
+                <svg viewBox="0 0 24 24"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+                No meals logged today. Add your first!
+              </div>
+            {% endif %}
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 </html>

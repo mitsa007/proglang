@@ -1,48 +1,166 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FitTrack Pro - Progress</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VitCheck — Progress</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <div class="container">
-        <div class="sidebar">
-            <div class="logo-container">
-                <img src="https://storage.googleapis.com/aai-web-template-images/fit-track-pro-logo.png" alt="FitTrack Pro" class="logo">
-                <h1>FitTrack Pro</h1>
-            </div>
-            <nav>
-                <ul>
-                    <li><a href="{{ url_for('overview') }}">Overview</a></li>
-                    <li><a href="{{ url_for('workout') }}">Workout</a></li>
-                    <li><a href="{{ url_for('meals') }}">Meals</a></li>
-                    <li class="active"><a href="{{ url_for('progress') }}">Progress</a></li>
-                    <li><a href="{{ url_for('profile') }}">Profile</a></li>
-                </ul>
-            </nav>
+  <div class="sidebar-overlay" id="sidebar-overlay"></div>
+  <button class="menu-toggle" id="menu-toggle" aria-label="Toggle navigation">
+    <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+  </button>
+
+  <div class="app-wrapper">
+    <aside class="sidebar" id="sidebar">
+      <div class="logo-container">
+        <img src="{{ url_for('static', filename='images/vitcheck_logo.png') }}" alt="VitCheck" class="logo">
+        <h1>VitCheck</h1>
+      </div>
+      <nav><ul>
+        <li><a href="{{ url_for('overview') }}"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Overview</a></li>
+        <li><a href="{{ url_for('workout') }}"><svg viewBox="0 0 24 24"><path d="M6.5 6.5h11M17 6.5V17a2.5 2.5 0 0 1-5 0V7a2.5 2.5 0 0 0-5 0v10.5"/><circle cx="6.5" cy="6.5" r="1.5"/><circle cx="17.5" cy="6.5" r="1.5"/></svg>Workout</a></li>
+        <li><a href="{{ url_for('meals') }}"><svg viewBox="0 0 24 24"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>Meals</a></li>
+        <li class="active"><a href="{{ url_for('progress') }}"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Progress</a></li>
+      </ul></nav>
+    </aside>
+
+    <main class="main-content fade-in">
+      <div class="page-header">
+        <div>
+          <h2><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Progress &amp; Prediction</h2>
+          <span class="breadcrumb">Track your weight and see AI predictions</span>
         </div>
-        <div class="main-content">
-            <header>
-                <h2>Your Progress 📊</h2>
-            </header>
-            <div class="card">
-                <div class="card-body">
-                    <h3>Weight Journey</h3>
-                    <canvas id="weightChart"></canvas>
-                </div>
+        <div class="header-actions">
+          <div class="avatar-dropdown">
+            <button class="avatar-btn" id="avatar-btn" type="button">
+              {% if current_user.photo_url %}<img src="{{ current_user.photo_url }}" alt="Profile">
+              {% else %}<svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>{% endif %}
+            </button>
+            <div class="dropdown-menu" id="dropdown-menu">
+              <a href="{{ url_for('profile') }}"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Profile</a>
+              <div class="dropdown-divider"></div>
+              <button type="button" id="dark-mode-btn"><svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>Dark Mode</button>
+              <a href="{{ url_for('logout') }}"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Sign Out</a>
             </div>
-            <div class="card">
-                <div class="card-body">
-                    <h3>Workout Duration</h3>
-                    <canvas id="workoutDurationChart"></canvas>
-                </div>
-            </div>
+          </div>
         </div>
-    </div>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+      </div>
+
+      <div class="overview-grid">
+
+        <!-- Log Weight (inline) -->
+        <div class="card full-width">
+          <div class="card-body">
+            <h3><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Log Your Weight</h3>
+            <form action="{{ url_for('log_weight') }}" method="post" style="margin-top:.75rem">
+              <div class="form-inline">
+                <div class="form-group">
+                  <label for="lw-date">Date</label>
+                  <input type="date" id="lw-date" name="date" value="{{ today }}" max="{{ today }}" required>
+                </div>
+                <div class="form-group">
+                  <label for="lw-weight">Weight (kg)</label>
+                  <input type="number" id="lw-weight" name="weight" placeholder="Enter weight" step="0.1" min="1" required>
+                </div>
+                <div class="form-group" style="flex:0;">
+                  <label style="visibility:hidden;">Log</label>
+                  <button type="submit" class="btn" id="log-weight-btn" style="width:auto; padding:.7rem 1.4rem;">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                    Log Weight
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Weight Log -->
+        <div class="card">
+          <div class="card-body">
+            <div class="card-body-header">
+              <h3 style="margin-bottom:0"><svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>Weight Log</h3>
+              {% if logs %}
+              <button class="btn-secondary" id="edit-weight-btn" type="button">Edit</button>
+              {% endif %}
+            </div>
+            {% if logs %}
+              <ul class="item-list" id="weight-list">
+                {% for log in logs %}
+                <li>
+                  <div class="item-left">
+                    <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                    <div class="item-detail">
+                      <span class="item-title">{{ log.weight }} kg</span>
+                      <span class="item-meta">on {{ log.date }}</span>
+                    </div>
+                  </div>
+                  <form action="{{ url_for('delete_weight', doc_id=log.id) }}" method="post" style="display:inline;">
+                    <button class="btn-delete" type="submit" title="Delete">&#8722;</button>
+                  </form>
+                </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <div class="empty-state">
+                <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                No weight entries yet. Log your first!
+              </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- AI Prediction -->
+        <div class="card">
+          <div class="card-body">
+            <h3><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>AI Prediction (Linear Regression)</h3>
+            {% if prediction %}
+              <div class="prediction-card" style="margin-top:.75rem">
+                <div class="prediction-icon">
+                  {% if prediction.trend == 'decreasing' %}
+                    <svg viewBox="0 0 24 24"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
+                  {% else %}
+                    <svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                  {% endif %}
+                </div>
+                <div class="prediction-info">
+                  <strong>Next: {{ prediction.next_weight }} kg</strong>
+                  <p>Trend is <em>{{ prediction.trend }}</em> at {{ prediction.slope }} kg/entry</p>
+                </div>
+              </div>
+            {% else %}
+              <div class="empty-state" style="padding:1rem 0">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                Log at least 2 weight entries to see a prediction.
+              </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Weight Progress Chart -->
+        <div class="card full-width">
+          <div class="card-body">
+            <h3><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Weight Progress Chart</h3>
+            {% if chart_labels %}
+              <div class="chart-wrap">
+                <canvas id="weightChart"
+                  data-labels="{{ chart_labels | tojson }}"
+                  data-weights="{{ chart_weights | tojson }}">
+                </canvas>
+              </div>
+            {% else %}
+              <div class="empty-state"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Chart will appear after 2+ entries.</div>
+            {% endif %}
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 </html>

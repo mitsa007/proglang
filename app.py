@@ -1,165 +1,414 @@
-
+import os
+import datetime
+import firebase_admin
+from firebase_admin import credentials, firestore, storage
 from flask import Flask, render_template, request, redirect, url_for, flash
-from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-import os
+import numpy as np
 
-# App initialization
+# ── App init ──────────────────────────────────────────────────────────────────
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'a_secret_key' # Replace with a real secret key in production
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(os.path.abspath(os.path.dirname(__file__)), 'database.db')
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SECRET_KEY']          = os.environ.get('SECRET_KEY', 'dev-secret-key')
+app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024   # 5 MB max upload
 
-db = SQLAlchemy(app)
+# ── Firebase init ─────────────────────────────────────────────────────────────
+cred = credentials.Certificate('serviceAccountKey.json')
+firebase_admin.initialize_app(cred, {
+    'storageBucket': 'proglang-3a28a.firebasestorage.app'
+})
+fs = firestore.client()
+
+# ── Flask-Login ───────────────────────────────────────────────────────────────
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
-# Models
-class User(UserMixin, db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(150), nullable=False)
-    email = db.Column(db.String(150), unique=True, nullable=False)
-    password = db.Column(db.String(150), nullable=False)
-    age = db.Column(db.Integer)
-    weight = db.Column(db.Float)
-    height = db.Column(db.Float)
-    goal = db.Column(db.String(50))
 
-class Workout(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    workout_type = db.Column(db.String(100))
-    duration = db.Column(db.Integer) # in minutes
-    intensity = db.Column(db.String(50))
+# ── User model ────────────────────────────────────────────────────────────────
+class User(UserMixin):
+    def __init__(self, data: dict):
+        self.id             = data.get('username')
+        self.username       = data.get('username')
+        self.name           = data.get('name')
+        self.password       = data.get('password')
+        self.age            = data.get('age')
+        self.height         = data.get('height')
+        self.goal           = data.get('goal')
+        self.starting_weight = data.get('starting_weight')
+        self.target_weight  = data.get('target_weight')
+        self.photo_url      = data.get('photo_url', '')
 
-class Meal(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    meal_type = db.Column(db.String(100))
-    description = db.Column(db.String(200))
-    calories = db.Column(db.Integer)
+    @staticmethod
+    def get(username: str):
+        doc = fs.collection('users').document(username).get()
+        return User(doc.to_dict()) if doc.exists else None
+
 
 @login_manager.user_loader
-def load_user(user_id):
-    return User.query.get(int(user_id))
+def load_user(uid):
+    return User.get(uid)
 
-# Routes
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+def get_current_weight(username):
+    """Return the most recent weight (float) logged by user, or None."""
+    docs = (fs.collection('weight_logs')
+              .where('user_id', '==', username)
+              .get())
+    if not docs:
+        return None
+    sorted_docs = sorted(docs, key=lambda d: d.to_dict().get('date', ''), reverse=True)
+    return float(sorted_docs[0].to_dict().get('weight', 0))
+
+
+def calc_bmi(weight_kg, height_cm):
+    try:
+        h = float(height_cm) / 100
+        return round(float(weight_kg) / (h * h), 1)
+    except Exception:
+        return None
+
+
+def progress_pct(starting, target, current):
+    try:
+        total = abs(float(starting) - float(target))
+        done  = abs(float(starting) - float(current))
+        return min(100, int((done / total) * 100)) if total > 0 else 100
+    except Exception:
+        return 0
+
+
+# ── Routes ────────────────────────────────────────────────────────────────────
+
 @app.route('/')
 def index():
     return render_template('index.html')
 
+
 @app.route('/create_profile', methods=['POST'])
 def create_profile():
-    # In a real app, you would associate this with the logged-in user
-    # For now, we'll create a new user each time for simplicity
-    new_user = User(
-        name=request.form['name'],
-        email=f"{request.form['name'].replace(' ', '.').lower()}@example.com", # Dummy email
-        password=generate_password_hash('password', method='pbkdf2:sha256'), # Dummy password
-        age=request.form['age'],
-        weight=request.form['weight'],
-        height=request.form['height'],
-        goal=request.form['goal']
-    )
-    db.session.add(new_user)
-    db.session.commit()
-    login_user(new_user)
+    name     = request.form['name']
+    username = name.replace(' ', '_').lower()
+    w        = request.form.get('weight')
+    user_data = {
+        'username':        username,
+        'name':            name,
+        'password':        generate_password_hash('password', method='pbkdf2:sha256'),
+        'age':             request.form.get('age'),
+        'height':          None,
+        'goal':            request.form.get('goal'),
+        'starting_weight': w,
+        'target_weight':   None,
+        'photo_url':       '',
+    }
+    fs.collection('users').document(username).set(user_data)
+    if w:
+        fs.collection('weight_logs').add({
+            'user_id': username,
+            'date':    datetime.date.today().isoformat(),
+            'weight':  float(w),
+        })
+    login_user(User(user_data))
     return redirect(url_for('overview'))
 
+
+# ── Dashboard / Overview ──────────────────────────────────────────────────────
 @app.route('/overview')
 @login_required
 def overview():
-    # Dummy data for demonstration
-    return render_template('overview.html', user=current_user, calories_burned=1250, workout_count=3, meal_count=4, avg_intensity='Medium', progress_percentage=65, progress_message='You are doing great!')
+    today = datetime.date.today().isoformat()
+    u     = current_user.username
 
+    workout_docs = fs.collection('workouts').where('user_id', '==', u).get()
+    meal_docs    = fs.collection('meals').where('user_id', '==', u).get()
+
+    workout_list = [d.to_dict() for d in workout_docs]
+    meal_list    = [d.to_dict() for d in meal_docs]
+    today_meals  = [m for m in meal_list if m.get('date') == today]
+
+    # MET-based calorie estimator (uses user weight if available, else 70 kg)
+    user_weight = float(current_user.starting_weight or 70)
+    MET = {'Low': 3.5, 'Medium': 6.0, 'High': 9.0}
+
+    def est_calories(w):
+        met  = MET.get(str(w.get('intensity', 'Medium')).capitalize(), 6.0)
+        mins = float(w.get('duration', 0))
+        return met * user_weight * (mins / 60)
+
+    calories_burned  = int(sum(est_calories(w) for w in workout_list))
+    workout_count    = len(workout_list)
+    meal_count       = len(meal_list)
+    today_cals       = sum(int(m.get('calories', 0)) for m in today_meals)
+
+    intensities   = [w.get('intensity','') for w in workout_list if w.get('intensity')]
+    avg_intensity = max(set(intensities), key=intensities.count).capitalize() if intensities else 'N/A'
+
+    cur_w  = get_current_weight(u)
+    pct    = progress_pct(current_user.starting_weight, current_user.target_weight, cur_w) if cur_w else 0
+
+    # ── Weekly bar chart data (Mon–Sun of current ISO week) ───────────────────
+    import datetime as dt
+    today_date = dt.date.today()
+    # Monday of current week
+    week_start = today_date - dt.timedelta(days=today_date.weekday())
+    week_days  = [week_start + dt.timedelta(days=i) for i in range(7)]
+    day_labels = [d.strftime('%a') for d in week_days]
+
+    weekly_cals = []
+    for day in week_days:
+        day_str   = day.isoformat()
+        day_total = sum(
+            est_calories(w) for w in workout_list
+            if w.get('date') == day_str
+        )
+        weekly_cals.append(round(day_total, 1))
+
+    return render_template('overview.html',
+        user=current_user,
+        calories_burned=calories_burned,
+        workout_count=workout_count,
+        meal_count=meal_count,
+        today_calories=today_cals,
+        avg_intensity=avg_intensity,
+        progress_percentage=pct,
+        progress_message='You are doing great! Keep going!',
+        weekly_labels=day_labels,
+        weekly_calories=weekly_cals,
+    )
+
+
+# ── Workout ───────────────────────────────────────────────────────────────────
 @app.route('/workout')
 @login_required
 def workout():
-    workouts = Workout.query.filter_by(user_id=current_user.id).all()
-    return render_template('workout_tracker.html', workouts=workouts)
+    docs = fs.collection('workouts').where('user_id', '==', current_user.username).get()
+    workouts = sorted(
+        [{'id': d.id, **d.to_dict()} for d in docs],
+        key=lambda x: (x.get('date',''), x.get('time','')),
+        reverse=True
+    )
+    today = datetime.date.today().isoformat()
+    now   = datetime.datetime.now().strftime('%H:%M')
+    return render_template('workout_tracker.html', workouts=workouts, today=today, now=now)
+
 
 @app.route('/add_workout', methods=['POST'])
 @login_required
 def add_workout():
-    new_workout = Workout(
-        user_id=current_user.id,
-        workout_type=request.form['workout-type'],
-        duration=request.form['duration'],
-        intensity=request.form['intensity']
-    )
-    db.session.add(new_workout)
-    db.session.commit()
+    fs.collection('workouts').add({
+        'user_id':      current_user.username,
+        'workout_type': request.form.get('workout_type', '').strip(),
+        'date':         request.form.get('date', datetime.date.today().isoformat()),
+        'time':         request.form.get('time', '00:00'),
+        'duration':     int(request.form.get('duration', 30)),
+        'intensity':    request.form.get('intensity', 'Medium'),
+    })
     return redirect(url_for('workout'))
 
+
+@app.route('/delete_workout/<doc_id>', methods=['POST'])
+@login_required
+def delete_workout(doc_id):
+    fs.collection('workouts').document(doc_id).delete()
+    return redirect(url_for('workout'))
+
+
+# ── Meals ─────────────────────────────────────────────────────────────────────
 @app.route('/meals')
 @login_required
 def meals():
-    meals = Meal.query.filter_by(user_id=current_user.id).all()
-    return render_template('meal_tracker.html', meals=meals)
+    docs = fs.collection('meals').where('user_id', '==', current_user.username).get()
+    meals_list = sorted(
+        [{'id': d.id, **d.to_dict()} for d in docs],
+        key=lambda x: (x.get('date',''), x.get('time','')),
+        reverse=True
+    )
+    today       = datetime.date.today().isoformat()
+    now         = datetime.datetime.now().strftime('%H:%M')
+    today_meals = [m for m in meals_list if m.get('date') == today]
+    today_cals  = sum(int(m.get('calories', 0)) for m in today_meals)
+    return render_template('meal_tracker.html',
+        meals=meals_list,
+        today_meals=today_meals,
+        today_calories=today_cals,
+        calorie_goal=2000,
+        today=today,
+        now=now,
+    )
+
 
 @app.route('/add_meal', methods=['POST'])
 @login_required
 def add_meal():
-    new_meal = Meal(
-        user_id=current_user.id,
-        meal_type=request.form['meal-type'],
-        description=request.form['description'],
-        calories=request.form['calories']
-    )
-    db.session.add(new_meal)
-    db.session.commit()
+    fs.collection('meals').add({
+        'user_id':   current_user.username,
+        'meal_name': request.form.get('meal_name', '').strip(),
+        'date':      request.form.get('date', datetime.date.today().isoformat()),
+        'time':      request.form.get('time', '00:00'),
+        'calories':  int(request.form.get('calories', 0)),
+    })
     return redirect(url_for('meals'))
 
+
+@app.route('/delete_meal/<doc_id>', methods=['POST'])
+@login_required
+def delete_meal(doc_id):
+    fs.collection('meals').document(doc_id).delete()
+    return redirect(url_for('meals'))
+
+
+# ── Progress ──────────────────────────────────────────────────────────────────
 @app.route('/progress')
 @login_required
 def progress():
-    return render_template('progress.html')
+    docs = fs.collection('weight_logs').where('user_id', '==', current_user.username).get()
+    logs = sorted(
+        [{'id': d.id, **d.to_dict()} for d in docs],
+        key=lambda x: x.get('date',''),
+        reverse=True
+    )
 
+    prediction    = None
+    chart_labels  = []
+    chart_weights = []
+
+    if len(logs) >= 2:
+        asc     = sorted(logs, key=lambda x: x.get('date',''))
+        weights = [float(l['weight']) for l in asc]
+        chart_labels  = [l['date'] for l in asc]
+        chart_weights = weights
+        x      = np.arange(len(weights))
+        coeffs = np.polyfit(x, weights, 1)
+        nxt    = round(float(np.polyval(coeffs, len(weights))), 1)
+        prediction = {
+            'next_weight': nxt,
+            'trend':       'decreasing' if coeffs[0] < 0 else 'increasing',
+            'slope':       round(float(coeffs[0]), 3),
+        }
+
+    today = datetime.date.today().isoformat()
+    return render_template('progress.html',
+        logs=logs,
+        prediction=prediction,
+        chart_labels=chart_labels,
+        chart_weights=chart_weights,
+        today=today,
+    )
+
+
+@app.route('/log_weight', methods=['POST'])
+@login_required
+def log_weight():
+    fs.collection('weight_logs').add({
+        'user_id': current_user.username,
+        'date':    request.form.get('date', datetime.date.today().isoformat()),
+        'weight':  float(request.form.get('weight', 0)),
+    })
+    return redirect(url_for('progress'))
+
+
+@app.route('/delete_weight/<doc_id>', methods=['POST'])
+@login_required
+def delete_weight(doc_id):
+    fs.collection('weight_logs').document(doc_id).delete()
+    return redirect(url_for('progress'))
+
+
+# ── Profile ───────────────────────────────────────────────────────────────────
 @app.route('/profile')
 @login_required
 def profile():
-    return render_template('profile.html', user=current_user)
+    cur_w = get_current_weight(current_user.username)
+    bmi   = calc_bmi(cur_w, current_user.height) if cur_w and current_user.height else None
+    return render_template('profile.html', user=current_user, current_weight=cur_w, bmi=bmi)
+
 
 @app.route('/update_profile', methods=['POST'])
 @login_required
 def update_profile():
-    current_user.name = request.form['name']
-    current_user.age = request.form['age']
-    current_user.weight = request.form['weight']
-    current_user.height = request.form['height']
-    current_user.goal = request.form['goal']
-    db.session.commit()
+    update_data = {
+        'name':            request.form.get('name'),
+        'age':             request.form.get('age'),
+        'height':          request.form.get('height'),
+        'starting_weight': request.form.get('starting_weight'),
+        'target_weight':   request.form.get('target_weight'),
+        'goal':            request.form.get('goal'),
+    }
+    photo = request.files.get('photo')
+    photo_data = request.form.get('photo_data', '')
+
+    if photo_data and photo_data.startswith('data:image'):
+        # Cropped base64 from Cropper.js
+        try:
+            import base64 as b64mod
+            header, data = photo_data.split(',', 1)
+            img_bytes = b64mod.b64decode(data)
+            bucket = storage.bucket()
+            blob   = bucket.blob(f'profile_photos/{current_user.username}.jpg')
+            blob.upload_from_string(img_bytes, content_type='image/jpeg')
+            blob.make_public()
+            update_data['photo_url'] = blob.public_url
+        except Exception as e:
+            flash(f'Photo upload failed: {e}')
+    elif photo and photo.filename:
+        # Raw file fallback
+        try:
+            bucket = storage.bucket()
+            blob   = bucket.blob(f'profile_photos/{current_user.username}')
+            blob.upload_from_file(photo, content_type=photo.content_type)
+            blob.make_public()
+            update_data['photo_url'] = blob.public_url
+        except Exception as e:
+            flash(f'Photo upload failed: {e}')
+    fs.collection('users').document(current_user.username).update(update_data)
+    flash('Profile updated successfully!')
     return redirect(url_for('profile'))
 
+
+@app.route('/reset_data', methods=['POST'])
+@login_required
+def reset_data():
+    u = current_user.username
+    for col in ('workouts', 'meals', 'weight_logs'):
+        for doc in fs.collection(col).where('user_id', '==', u).get():
+            doc.reference.delete()
+    flash('All your data has been reset.')
+    return redirect(url_for('profile'))
+
+
+# ── Auth ──────────────────────────────────────────────────────────────────────
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        user = User.query.filter_by(email=request.form['email']).first()
+        user = User.get(request.form['username'])
         if user and check_password_hash(user.password, request.form['password']):
             login_user(user)
             return redirect(url_for('overview'))
-        flash('Invalid credentials')
+        flash('Invalid username or password')
     return render_template('login.html')
+
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        hashed_password = generate_password_hash(request.form['password'], method='pbkdf2:sha256')
-        new_user = User(name=request.form['name'], email=request.form['email'], password=hashed_password)
-        db.session.add(new_user)
-        db.session.commit()
+        username = request.form['username']
+        if fs.collection('users').document(username).get().exists:
+            flash('Username already taken — please choose another.')
+            return render_template('register.html')
+        hashed = generate_password_hash(request.form['password'], method='pbkdf2:sha256')
+        fs.collection('users').document(username).set({
+            'username': username, 'name': request.form['name'],
+            'password': hashed,
+            'age': None, 'height': None, 'goal': None,
+            'starting_weight': None, 'target_weight': None, 'photo_url': '',
+        })
         return redirect(url_for('login'))
     return render_template('register.html')
+
 
 @app.route('/logout')
 @login_required
 def logout():
     logout_user()
     return redirect(url_for('index'))
-
-if __name__ == "__main__":
-    with app.app_context():
-        db.create_all()
-    app.run(debug=True)
