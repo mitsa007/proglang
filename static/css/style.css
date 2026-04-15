@@ -351,8 +351,16 @@ body {
    ============================================================ */
 .overview-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 1.25rem;
+}
+
+/* 4-column stat row on overview page */
+.stat-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.25rem;
+  margin-bottom: 1.25rem;
 }
 
 .card.full-width { grid-column: 1 / -1; }
@@ -617,7 +625,46 @@ body {
 }
 
 /* ============================================================
+   PASSWORD RULES CHECKLIST  (register + profile)
+   ============================================================ */
+.pw-rules {
+  margin-top: 8px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--off-white);
+  border: 1px solid var(--border);
+  list-style: none;
+  font-size: .8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pw-rules li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  transition: color .25s;
+}
+
+.pw-rules li.ok { color: #22c55e; }
+
+.pw-rules li::before {
+  content: '✗';
+  font-weight: 700;
+  color: #f87171;
+  transition: color .25s;
+}
+
+.pw-rules li.ok::before {
+  content: '✓';
+  color: #22c55e;
+}
+
+/* ============================================================
    FLASH MESSAGES
+
    ============================================================ */
 .flash-msg {
   background: #fdecea;
@@ -635,7 +682,7 @@ body {
 /* ============================================================
    CHARTS
    ============================================================ */
-.chart-wrap { position: relative; height: 240px; }
+.chart-wrap { position: relative; height: 200px; }
 
 /* ============================================================
    ANIMATIONS
@@ -681,6 +728,17 @@ body {
   .overview-grid { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
 }
 
+@media (max-width: 768px) {
+  /* Stack workout two-column layout */
+  .workout-grid { grid-template-columns: 1fr !important; }
+
+  /* Stack profile row-1 layout */
+  .profile-row1 { grid-template-columns: 1fr !important; }
+
+  /* Stack progress side-by-side layout */
+  .progress-split { grid-template-columns: 1fr !important; }
+}
+
 @media (max-width: 680px) {
   .sidebar {
     transform: translateX(-100%);
@@ -698,6 +756,7 @@ body {
 
   .page-header h2 { font-size: 1.3rem; }
   .overview-grid { grid-template-columns: 1fr 1fr; }
+  .stat-cards-grid { grid-template-columns: repeat(2, 1fr); }
   .card-stat { font-size: 1.9rem; }
 
   .goal-options { gap: .5rem; }
@@ -1044,7 +1103,7 @@ input[type=range]::-webkit-slider-thumb {
   background: var(--border);
   border-radius: var(--radius-sm);
   overflow: hidden;
-  margin: 1rem 0;
+  margin: 1rem 0 0 0;
 }
 
 .stat-item { background: var(--white); padding: .8rem 1rem; }

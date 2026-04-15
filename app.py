@@ -402,6 +402,37 @@ def reset_data():
     return redirect(url_for('profile'))
 
 
+@app.route('/change_password', methods=['POST'])
+@login_required
+def change_password():
+    current_pw  = request.form.get('current_password', '')
+    new_pw      = request.form.get('new_password', '')
+    confirm_pw  = request.form.get('confirm_password', '')
+
+    # Verify current password
+    if not check_password_hash(current_user.password, current_pw):
+        flash('Current password is incorrect.')
+        return redirect(url_for('profile'))
+
+    # Check new password matches confirmation
+    if new_pw != confirm_pw:
+        flash('New passwords do not match.')
+        return redirect(url_for('profile'))
+
+    # Enforce strength rules
+    pw_error = validate_password(new_pw)
+    if pw_error:
+        flash(pw_error)
+        return redirect(url_for('profile'))
+
+    # Save new hashed password
+    hashed = generate_password_hash(new_pw, method='pbkdf2:sha256')
+    fs.collection('users').document(current_user.username).update({'password': hashed})
+    flash('Password changed successfully!')
+    return redirect(url_for('profile'))
+
+
+
 # ── Auth ──────────────────────────────────────────────────────────────────────
 @app.route('/login', methods=['GET', 'POST'])
 def login():

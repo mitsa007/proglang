@@ -64,10 +64,12 @@
         {% endfor %}{% endif %}
       {% endwith %}
 
-      <div class="overview-grid">
+      <!-- Row 1: Profile Summary + Update Profile -->
+      <div class="profile-row1" style="display:grid; grid-template-columns:300px 1fr; gap:1.25rem; align-items:start; margin-bottom:1.25rem;">
 
         <!-- Profile Summary Card -->
-        <div class="card">
+        <div class="card" style="align-self:start;">
+
           <div class="card-body" style="text-align:center;">
             <!-- Photo -->
             <div class="photo-wrap">
@@ -150,7 +152,6 @@
               </div>
               <div class="form-group">
                 <label>Profile Photo</label>
-                <!-- Photo upload label triggers crop modal -->
                 <div class="photo-wrap" style="text-align:left; display:flex; align-items:center; gap:1rem;">
                   <label class="photo-upload-label" for="photo-input" title="Click to adjust photo" id="photo-label">
                     {% if user.photo_url %}
@@ -167,9 +168,7 @@
                     <p class="photo-hint" id="photo-name">No file chosen</p>
                   </div>
                 </div>
-                <!-- hidden file input (no name — won't be submitted raw) -->
                 <input type="file" id="photo-input" accept="image/*" style="display:none;">
-                <!-- cropped base64 data sent to server -->
                 <input type="hidden" id="photo-data" name="photo_data">
               </div>
               <button type="submit" class="btn" id="update-profile-btn" style="margin-top:.5rem">
@@ -190,8 +189,58 @@
         </div>
 
       </div>
+
+      <!-- Row 2: Change Password (full width) -->
+      <div class="card">
+        <div class="card-body">
+          <h3>
+            <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            Change Password
+          </h3>
+          <form action="{{ url_for('change_password') }}" method="post" id="change-pw-form" style="margin-top:.75rem;">
+            <div class="form-grid-2" style="align-items:start;">
+              <!-- Left: current password -->
+              <div>
+                <div class="form-group">
+                  <label for="current-password">Current Password</label>
+                  <input type="password" id="current-password" name="current_password"
+                         placeholder="Enter current password" autocomplete="current-password" required>
+                </div>
+              </div>
+              <!-- Right: new + confirm -->
+              <div>
+                <div class="form-group">
+                  <label for="new-password">New Password</label>
+                  <input type="password" id="new-password" name="new_password"
+                         placeholder="Enter new password" autocomplete="new-password" required>
+                  <ul class="pw-rules" id="cpw-rules" aria-label="Password requirements">
+                    <li id="cpw-rule-length">At least 8 characters</li>
+                    <li id="cpw-rule-upper">At least 1 uppercase letter</li>
+                    <li id="cpw-rule-number">At least 1 number</li>
+                  </ul>
+                </div>
+                <div class="form-group">
+                  <label for="confirm-password">Confirm New Password</label>
+                  <input type="password" id="confirm-password" name="confirm_password"
+                         placeholder="Re-enter new password" autocomplete="new-password" required>
+                  <p id="cpw-match-msg" style="font-size:.78rem; margin-top:5px; display:none;"></p>
+                </div>
+              </div>
+            </div>
+            <div style="margin-top:.25rem;">
+              <button type="submit" class="btn" id="change-pw-btn" style="width:auto; padding:.7rem 1.6rem;">
+                <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                Change Password
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
     </main>
   </div>
+
+
 
   <!-- ── Crop Modal ─────────────────────────────────────── -->
   <div class="crop-modal" id="crop-modal">
@@ -244,6 +293,46 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
   <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+  <script>
+  /* ── Change Password: live validation ─────────────────── */
+  (function () {
+    const newPw     = document.getElementById('new-password');
+    const confirmPw = document.getElementById('confirm-password');
+    const form      = document.getElementById('change-pw-form');
+    const matchMsg  = document.getElementById('cpw-match-msg');
+    const ruleLen   = document.getElementById('cpw-rule-length');
+    const ruleUpper = document.getElementById('cpw-rule-upper');
+    const ruleNum   = document.getElementById('cpw-rule-number');
+
+    function checkRules(v) {
+      ruleLen.classList.toggle('ok',   v.length >= 8);
+      ruleUpper.classList.toggle('ok', /[A-Z]/.test(v));
+      ruleNum.classList.toggle('ok',   /[0-9]/.test(v));
+    }
+
+    function checkMatch() {
+      if (!confirmPw.value) { matchMsg.style.display = 'none'; return; }
+      const match = newPw.value === confirmPw.value;
+      matchMsg.style.display = 'block';
+      matchMsg.textContent   = match ? '✓ Passwords match' : '✗ Passwords do not match';
+      matchMsg.style.color   = match ? '#22c55e' : '#f87171';
+    }
+
+    newPw.addEventListener('input',     () => { checkRules(newPw.value); checkMatch(); });
+    confirmPw.addEventListener('input', checkMatch);
+
+    form.addEventListener('submit', (e) => {
+      const v = newPw.value;
+      if (v.length < 8 || !/[A-Z]/.test(v) || !/[0-9]/.test(v)) {
+        e.preventDefault(); checkRules(v); newPw.focus(); return;
+      }
+      if (v !== confirmPw.value) {
+        e.preventDefault(); checkMatch(); confirmPw.focus();
+      }
+    });
+  })();
+  </script>
+
   <script>
   (function () {
     const photoInput   = document.getElementById('photo-input');

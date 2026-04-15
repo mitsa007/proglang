@@ -86,7 +86,8 @@
         </div>
       </div>
 
-      <div class="overview-grid">
+      <!-- Stat cards: always 4 equal columns -->
+      <div class="stat-cards-grid">
 
         <!-- Calories Burned -->
         <div class="card">
@@ -136,6 +137,11 @@
           </div>
         </div>
 
+      </div>
+
+      <!-- Full-width cards below -->
+      <div class="overview-grid">
+
         <!-- Weekly Activity Chart -->
         <div class="card full-width">
           <div class="card-body">
@@ -180,6 +186,7 @@
       </div><!-- /.overview-grid -->
     </main>
   </div><!-- /.app-wrapper -->
+
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="{{ url_for('static', filename='js/script.js') }}"></script>
