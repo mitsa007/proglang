@@ -1,4 +1,5 @@
 import os
+import re
 import datetime
 import firebase_admin
 from firebase_admin import credentials, firestore, storage
@@ -77,6 +78,17 @@ def progress_pct(starting, target, current):
         return min(100, int((done / total) * 100)) if total > 0 else 100
     except Exception:
         return 0
+
+
+def validate_password(password: str) -> str | None:
+    """Return an error message string if the password is invalid, else None."""
+    if len(password) < 8:
+        return 'Password must be at least 8 characters long.'
+    if not re.search(r'[A-Z]', password):
+        return 'Password must contain at least one uppercase letter.'
+    if not re.search(r'[0-9]', password):
+        return 'Password must contain at least one number.'
+    return None
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -406,10 +418,15 @@ def login():
 def register():
     if request.method == 'POST':
         username = request.form['username']
+        password = request.form['password']
         if fs.collection('users').document(username).get().exists:
             flash('Username already taken — please choose another.')
             return render_template('register.html')
-        hashed = generate_password_hash(request.form['password'], method='pbkdf2:sha256')
+        pw_error = validate_password(password)
+        if pw_error:
+            flash(pw_error)
+            return render_template('register.html')
+        hashed = generate_password_hash(password, method='pbkdf2:sha256')
         fs.collection('users').document(username).set({
             'username': username, 'name': request.form['name'],
             'password': hashed,
