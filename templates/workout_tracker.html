@@ -57,7 +57,7 @@
         </div>
       </div>
 
-      <div class="overview-grid" style="grid-template-columns: minmax(280px,380px) 1fr; align-items: start;">
+      <div class="overview-grid" style="grid-template-columns: minmax(280px,380px) 1fr; align-items: stretch;">
 
         <!-- Log Workout Form -->
         <div class="card">
@@ -101,8 +101,8 @@
         </div>
 
         <!-- Recent Workouts -->
-        <div class="card">
-          <div class="card-body">
+        <div class="card" style="display:flex; flex-direction:column;">
+          <div class="card-body" style="display:flex; flex-direction:column; flex:1; overflow:hidden;">
             <div class="card-body-header">
               <h3 style="margin-bottom:0"><svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>Recent Workouts</h3>
               {% if workouts %}
@@ -110,7 +110,7 @@
               {% endif %}
             </div>
             {% if workouts %}
-              <ul class="item-list" id="workout-list">
+              <ul class="item-list" id="workout-list" style="overflow-y:auto; flex:1; margin-top:.5rem; padding-right:4px;">
                 {% for w in workouts %}
                 <li>
                   <div class="item-left">
@@ -136,6 +136,7 @@
         </div>
 
       </div>
+
     </main>
   </div>
 

@@ -230,9 +230,23 @@ body {
   margin-left: var(--sidebar-w);
   flex: 1;
   padding: 2rem 2.5rem;
-  min-height: 100vh;
+  height: 100vh;
+  overflow-y: auto;
   background: var(--off-white);
 }
+
+/* Recent Workouts scrollable list */
+#workout-list {
+  max-height: calc(100vh - 280px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--tan) transparent;
+}
+
+#workout-list::-webkit-scrollbar { width: 5px; }
+#workout-list::-webkit-scrollbar-track { background: transparent; }
+#workout-list::-webkit-scrollbar-thumb { background: var(--tan); border-radius: 99px; }
+
 
 /* ---- Page Header ---- */
 .page-header {
