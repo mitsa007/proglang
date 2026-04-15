@@ -256,7 +256,7 @@ def meals():
         meals=meals_list,
         today_meals=today_meals,
         today_calories=today_cals,
-        calorie_goal=2000,
+        calorie_goal=1400,
         today=today,
         now=now,
         past_meals_by_date=past_meals_by_date,
