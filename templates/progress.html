@@ -55,37 +55,38 @@
         </div>
       </div>
 
-      <div class="overview-grid">
-
-        <!-- Log Weight (inline) -->
-        <div class="card full-width">
-          <div class="card-body">
-            <h3><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Log Your Weight</h3>
-            <form action="{{ url_for('log_weight') }}" method="post" style="margin-top:.75rem">
-              <div class="form-inline">
-                <div class="form-group">
-                  <label for="lw-date">Date</label>
-                  <input type="date" id="lw-date" name="date" value="{{ today }}" max="{{ today }}" required>
-                </div>
-                <div class="form-group">
-                  <label for="lw-weight">Weight (kg)</label>
-                  <input type="number" id="lw-weight" name="weight" placeholder="Enter weight" step="0.1" min="1" required>
-                </div>
-                <div class="form-group" style="flex:0;">
-                  <label style="visibility:hidden;">Log</label>
-                  <button type="submit" class="btn" id="log-weight-btn" style="width:auto; padding:.7rem 1.4rem;">
-                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-                    Log Weight
-                  </button>
-                </div>
+      <!-- Log Weight (full width top bar) -->
+      <div class="card" style="margin-bottom:1.25rem;">
+        <div class="card-body">
+          <h3><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Log Your Weight</h3>
+          <form action="{{ url_for('log_weight') }}" method="post" style="margin-top:.75rem">
+            <div class="form-inline">
+              <div class="form-group">
+                <label for="lw-date">Date</label>
+                <input type="date" id="lw-date" name="date" value="{{ today }}" max="{{ today }}" required>
               </div>
-            </form>
-          </div>
+              <div class="form-group">
+                <label for="lw-weight">Weight (kg)</label>
+                <input type="number" id="lw-weight" name="weight" placeholder="Enter weight" step="0.1" min="1" required>
+              </div>
+              <div class="form-group" style="flex:0;">
+                <label style="visibility:hidden;">Log</label>
+                <button type="submit" class="btn" id="log-weight-btn" style="width:auto; padding:.7rem 1.4rem;">
+                  <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                  Log Weight
+                </button>
+              </div>
+            </div>
+          </form>
         </div>
+      </div>
+
+      <!-- Weight Log + AI Prediction side by side -->
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.25rem; align-items:stretch; margin-bottom:1.25rem;">
 
         <!-- Weight Log -->
-        <div class="card">
-          <div class="card-body">
+        <div class="card" style="display:flex; flex-direction:column;">
+          <div class="card-body" style="display:flex; flex-direction:column; flex:1; overflow:hidden;">
             <div class="card-body-header">
               <h3 style="margin-bottom:0"><svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>Weight Log</h3>
               {% if logs %}
@@ -93,13 +94,13 @@
               {% endif %}
             </div>
             {% if logs %}
-              <ul class="item-list" id="weight-list">
+              <ul class="item-list" id="weight-list" style="overflow-y:auto; flex:1; margin-top:.5rem; padding-right:4px; max-height:360px;">
                 {% for log in logs %}
                 <li>
                   <div class="item-left">
                     <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
                     <div class="item-detail">
-                      <span class="item-title">{{ log.weight }} kg</span>
+                      <span class="item-title">{{ log.weight }} Kg</span>
                       <span class="item-meta">on {{ log.date }}</span>
                     </div>
                   </div>
@@ -110,7 +111,7 @@
                 {% endfor %}
               </ul>
             {% else %}
-              <div class="empty-state">
+              <div class="empty-state" style="flex:1; justify-content:center;">
                 <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
                 No weight entries yet. Log your first!
               </div>
@@ -119,25 +120,54 @@
         </div>
 
         <!-- AI Prediction -->
-        <div class="card">
-          <div class="card-body">
-            <h3><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>AI Prediction (Linear Regression)</h3>
+        <div class="card" style="display:flex; flex-direction:column;">
+          <div class="card-body" style="display:flex; flex-direction:column; flex:1;">
+            <h3><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>AI Prediction <span style="font-weight:400; text-transform:none; letter-spacing:0;">(Linear Regression)</span></h3>
             {% if prediction %}
-              <div class="prediction-card" style="margin-top:.75rem">
-                <div class="prediction-icon">
-                  {% if prediction.trend == 'decreasing' %}
-                    <svg viewBox="0 0 24 24"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
-                  {% else %}
-                    <svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
-                  {% endif %}
+              <div style="display:flex; flex-direction:column; flex:1; gap:1rem; margin-top:.75rem;">
+
+                <!-- Trend icon + headline -->
+                <div class="prediction-card" style="margin-top:0;">
+                  <div class="prediction-icon">
+                    {% if prediction.trend == 'decreasing' %}
+                      <svg viewBox="0 0 24 24"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
+                    {% else %}
+                      <svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                    {% endif %}
+                  </div>
+                  <div class="prediction-info">
+                    <strong>Next: {{ prediction.next_weight }} kg</strong>
+                    <p>Trend is <em>{{ prediction.trend }}</em> at {{ prediction.slope }} kg/entry</p>
+                  </div>
                 </div>
-                <div class="prediction-info">
-                  <strong>Next: {{ prediction.next_weight }} kg</strong>
-                  <p>Trend is <em>{{ prediction.trend }}</em> at {{ prediction.slope }} kg/entry</p>
+
+                <!-- Stat breakdown tiles -->
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:.75rem; flex:1;">
+                  <div style="background:var(--off-white); border:1px solid var(--border); border-radius:var(--radius-sm); padding:1rem; display:flex; flex-direction:column; gap:.25rem;">
+                    <span style="font-size:.72rem; font-weight:600; text-transform:uppercase; letter-spacing:.07em; color:var(--text-muted);">Predicted Weight</span>
+                    <span style="font-size:1.6rem; font-weight:700; color:var(--dark-brown); line-height:1.1;">{{ prediction.next_weight }}<span style="font-size:.9rem; font-weight:500;"> kg</span></span>
+                  </div>
+                  <div style="background:var(--off-white); border:1px solid var(--border); border-radius:var(--radius-sm); padding:1rem; display:flex; flex-direction:column; gap:.25rem;">
+                    <span style="font-size:.72rem; font-weight:600; text-transform:uppercase; letter-spacing:.07em; color:var(--text-muted);">Weekly Change</span>
+                    <span style="font-size:1.6rem; font-weight:700; color:{% if prediction.trend == 'decreasing' %}#22c55e{% else %}#f97316{% endif %}; line-height:1.1;">
+                      {% if prediction.trend == 'decreasing' %}↓{% else %}↑{% endif %}
+                      {{ (prediction.slope * 7) | abs | round(2) }}<span style="font-size:.9rem; font-weight:500;"> kg</span>
+                    </span>
+                  </div>
+                  <div style="grid-column:1/-1; background:var(--off-white); border:1px solid var(--border); border-radius:var(--radius-sm); padding:1rem; display:flex; flex-direction:column; gap:.3rem;">
+                    <span style="font-size:.72rem; font-weight:600; text-transform:uppercase; letter-spacing:.07em; color:var(--text-muted);">Insight</span>
+                    <p style="font-size:.875rem; color:var(--text-main); line-height:1.5;">
+                      {% if prediction.trend == 'decreasing' %}
+                        🎉 You're on track! Your weight is steadily decreasing. Keep maintaining your current routine.
+                      {% else %}
+                        ⚠️ Your weight is trending upward. Consider reviewing your diet and activity levels.
+                      {% endif %}
+                    </p>
+                  </div>
                 </div>
               </div>
             {% else %}
-              <div class="empty-state" style="padding:1rem 0">
+              <div class="empty-state" style="flex:1; justify-content:center;">
                 <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                 Log at least 2 weight entries to see a prediction.
               </div>
@@ -145,24 +175,26 @@
           </div>
         </div>
 
-        <!-- Weight Progress Chart -->
-        <div class="card full-width">
-          <div class="card-body">
-            <h3><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Weight Progress Chart</h3>
-            {% if chart_labels %}
-              <div class="chart-wrap">
-                <canvas id="weightChart"
-                  data-labels="{{ chart_labels | tojson }}"
-                  data-weights="{{ chart_weights | tojson }}">
-                </canvas>
-              </div>
-            {% else %}
-              <div class="empty-state"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Chart will appear after 2+ entries.</div>
-            {% endif %}
-          </div>
-        </div>
-
       </div>
+
+      <!-- Weight Progress Chart (full width) -->
+      <div class="card">
+        <div class="card-body">
+          <h3><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Weight Progress Chart</h3>
+          {% if chart_labels %}
+            <div class="chart-wrap">
+              <canvas id="weightChart"
+                data-labels="{{ chart_labels | tojson }}"
+                data-weights="{{ chart_weights | tojson }}">
+              </canvas>
+            </div>
+          {% else %}
+            <div class="empty-state"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Chart will appear after 2+ entries.</div>
+          {% endif %}
+        </div>
+      </div>
+
+
     </main>
   </div>
 

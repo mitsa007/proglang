@@ -247,6 +247,19 @@ body {
 #workout-list::-webkit-scrollbar-track { background: transparent; }
 #workout-list::-webkit-scrollbar-thumb { background: var(--tan); border-radius: 99px; }
 
+/* Weight Log scrollable list */
+#weight-list {
+  max-height: calc(100vh - 280px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--tan) transparent;
+}
+
+#weight-list::-webkit-scrollbar { width: 5px; }
+#weight-list::-webkit-scrollbar-track { background: transparent; }
+#weight-list::-webkit-scrollbar-thumb { background: var(--tan); border-radius: 99px; }
+
+
 
 /* ---- Page Header ---- */
 .page-header {
