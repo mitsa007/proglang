@@ -228,6 +228,18 @@ def meals():
     now         = datetime.datetime.now().strftime('%H:%M')
     today_meals = [m for m in meals_list if m.get('date') == today]
     today_cals  = sum(int(m.get('calories', 0)) for m in today_meals)
+
+    # Build past meals grouped by date (newest date first, today excluded)
+    past_meals_by_date = {}
+    for m in meals_list:
+        d = m.get('date', '')
+        if d and d != today:
+            past_meals_by_date.setdefault(d, []).append(m)
+    # Sort dates newest-first
+    past_meals_by_date = dict(
+        sorted(past_meals_by_date.items(), key=lambda x: x[0], reverse=True)
+    )
+
     return render_template('meal_tracker.html',
         meals=meals_list,
         today_meals=today_meals,
@@ -235,6 +247,7 @@ def meals():
         calorie_goal=2000,
         today=today,
         now=now,
+        past_meals_by_date=past_meals_by_date,
     )
 
 
