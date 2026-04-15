@@ -112,6 +112,52 @@
                 <div class="stat-value">{{ bmi or '—' }}</div>
               </div>
             </div>
+
+            <!-- ── Weight Progress ─────────────────────────── -->
+            {% if current_weight and user.starting_weight and user.target_weight %}
+              {% set sw = user.starting_weight | float %}
+              {% set tw = user.target_weight | float %}
+              {% set cw = current_weight | float %}
+              {% set total = (sw - tw) | abs %}
+              {% set done  = (sw - cw) | abs %}
+              {% set pct   = [[(done / total * 100) | int, 0] | max, 100] | min if total > 0 else 100 %}
+              {% set kg_left = (cw - tw) | abs | round(1) %}
+            <div style="margin-top:1rem; text-align:left;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:.35rem;">
+                <span style="font-size:.72rem; font-weight:600; text-transform:uppercase; letter-spacing:.07em; color:var(--text-muted);">Goal Progress</span>
+                <span style="font-size:.75rem; font-weight:700; color:var(--brown);">{{ pct }}%</span>
+              </div>
+              <div style="height:8px; background:var(--sand); border-radius:99px; overflow:hidden;">
+                <div style="height:100%; width:{{ pct }}%; background:linear-gradient(90deg,var(--light-brown),var(--brown)); border-radius:99px;"></div>
+              </div>
+              <p style="font-size:.75rem; color:var(--text-muted); margin-top:.4rem;">
+                {% if cw <= tw %}🎉 Goal reached!
+                {% else %}{{ kg_left }} kg remaining to target{% endif %}
+              </p>
+            </div>
+            {% endif %}
+
+            <!-- ── BMI Category ────────────────────────────── -->
+            {% if bmi %}
+              {% if bmi | float < 18.5 %}{% set bmi_label='Underweight' %}{% set bmi_color='#60a5fa' %}
+              {% elif bmi | float < 25 %}{% set bmi_label='Normal' %}{% set bmi_color='#22c55e' %}
+              {% elif bmi | float < 30 %}{% set bmi_label='Overweight' %}{% set bmi_color='#f97316' %}
+              {% else %}{% set bmi_label='Obese' %}{% set bmi_color='#ef4444' %}{% endif %}
+            <div style="margin-top:.85rem; display:flex; align-items:center; justify-content:space-between; background:var(--off-white); border:1px solid var(--border); border-radius:var(--radius-sm); padding:.65rem .9rem;">
+              <div>
+                <div style="font-size:.7rem; font-weight:600; text-transform:uppercase; letter-spacing:.07em; color:var(--text-muted);">BMI Status</div>
+                <div style="font-size:.92rem; font-weight:700; color:var(--dark-brown); margin-top:.1rem;">{{ bmi }}</div>
+              </div>
+              <span style="font-size:.75rem; font-weight:700; padding:.3rem .75rem; border-radius:99px; background:{{ bmi_color }}22; color:{{ bmi_color }}; border:1px solid {{ bmi_color }}44;">{{ bmi_label }}</span>
+            </div>
+            {% endif %}
+
+            <!-- ── Username ────────────────────────────────── -->
+            <div style="margin-top:.75rem; display:flex; align-items:center; gap:.5rem; background:var(--off-white); border:1px solid var(--border); border-radius:var(--radius-sm); padding:.65rem .9rem;">
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="var(--text-muted)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              <span style="font-size:.8rem; color:var(--text-muted);">@{{ user.username }}</span>
+            </div>
+
           </div>
         </div>
 
