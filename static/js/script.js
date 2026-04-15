@@ -212,4 +212,14 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 
+  /* ============================================================
+     LOGOUT — clear dark-mode preference so auth pages render light
+  ============================================================ */
+  document.querySelectorAll('a[href*="logout"]').forEach(link => {
+    link.addEventListener('click', () => {
+      localStorage.removeItem('darkMode');
+      document.documentElement.classList.remove('dark');
+    });
+  });
+
 });

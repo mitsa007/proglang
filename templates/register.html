@@ -7,6 +7,11 @@
   <title>VitCheck — Register</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <!-- Dark mode is disabled on auth pages -->
+  <script>
+    localStorage.removeItem('darkMode');
+    document.documentElement.classList.remove('dark');
+  </script>
   <style>
     .pw-rules {
       margin-top: 8px;
