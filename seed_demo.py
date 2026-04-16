@@ -148,7 +148,7 @@ daily_meal_plans = [
      ('Cottage cheese',                 140, '15:00')],
 ]
 
-for days_ago in range(30, -1, -1):
+for days_ago in range(30, 0, -1):   # 30 days ago → yesterday (today stays empty)
     plan = daily_meal_plans[(30 - days_ago) % len(daily_meal_plans)]
     date = d(days_ago)
     for meal_name, kcal, time in plan:

@@ -62,7 +62,7 @@
         <div class="card-body">
           <h3><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Log Your Weight</h3>
           <form action="{{ url_for('log_weight') }}" method="post" style="margin-top:.75rem">
-            <div class="form-inline">
+            <div class="form-grid-2">
               <div class="form-group">
                 <label for="lw-date">Date</label>
                 <input type="date" id="lw-date" name="date" value="{{ today }}" max="{{ today }}" required>
@@ -71,20 +71,17 @@
                 <label for="lw-weight">Weight (kg)</label>
                 <input type="number" id="lw-weight" name="weight" placeholder="Enter weight" step="0.1" min="1" required>
               </div>
-              <div class="form-group" style="flex:0;">
-                <label style="visibility:hidden;">Log</label>
-                <button type="submit" class="btn" id="log-weight-btn" style="width:auto; padding:.7rem 1.4rem;">
-                  <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-                  Log Weight
-                </button>
-              </div>
             </div>
+            <button type="submit" class="btn" id="log-weight-btn" style="margin-top:.5rem; width:100%;">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+              Log Weight
+            </button>
           </form>
         </div>
       </div>
 
       <!-- Weight Log + AI Prediction side by side -->
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.25rem; align-items:stretch; margin-bottom:1.25rem;">
+      <div class="progress-split">
 
         <!-- Weight Log -->
         <div class="card" style="display:flex; flex-direction:column;">
