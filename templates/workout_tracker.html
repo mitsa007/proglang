@@ -68,7 +68,33 @@
             <form action="{{ url_for('add_workout') }}" method="post" style="margin-top:.75rem">
               <div class="form-group">
                 <label for="workout_type">Workout Type</label>
-                <input type="text" id="workout_type" name="workout_type" placeholder="e.g., Running, Weightlifting" required>
+                <select id="workout_type" name="workout_type" required>
+                  <option value="" disabled selected>Select a workout…</option>
+                  <optgroup label="Cardio">
+                    <option value="Running">Running</option>
+                    <option value="Cycling">Cycling</option>
+                    <option value="Swimming">Swimming</option>
+                    <option value="Walking">Walking</option>
+                    <option value="HIIT">HIIT</option>
+                    <option value="Jump Rope">Jump Rope</option>
+                    <option value="Rowing">Rowing</option>
+                    <option value="Elliptical">Elliptical</option>
+                  </optgroup>
+                  <optgroup label="Strength">
+                    <option value="Weightlifting">Weightlifting</option>
+                    <option value="Boxing">Boxing</option>
+                  </optgroup>
+                  <optgroup label="Mind-Body">
+                    <option value="Yoga">Yoga</option>
+                    <option value="Pilates">Pilates</option>
+                    <option value="Dancing">Dancing</option>
+                  </optgroup>
+                  <optgroup label="Sports">
+                    <option value="Basketball">Basketball</option>
+                    <option value="Football">Football</option>
+                    <option value="Tennis">Tennis</option>
+                  </optgroup>
+                </select>
               </div>
               <div class="form-grid-2">
                 <div class="form-group">
@@ -118,8 +144,8 @@
                   <div class="item-left">
                     <svg viewBox="0 0 24 24"><path d="M6.5 6.5h11M17 6.5V17a2.5 2.5 0 0 1-5 0V7a2.5 2.5 0 0 0-5 0v10.5"/><circle cx="6.5" cy="6.5" r="1.5"/><circle cx="17.5" cy="6.5" r="1.5"/></svg>
                     <div class="item-detail">
-                      <span class="item-title">{{ w.workout_type }} — {{ w.duration }} min ({{ w.intensity }} Intensity)</span>
-                      <span class="item-meta">{{ w.date }} at {{ w.time }}</span>
+                      <span class="item-title">{{ w.workout_type }} — {{ w.duration }} min ({{ w.intensity }})</span>
+                      <span class="item-meta">{{ w.date }} at {{ w.time }} &middot; ~{{ w.est_kcal }} kcal</span>
                     </div>
                   </div>
                   <form action="{{ url_for('delete_workout', doc_id=w.id) }}" method="post" style="display:inline;">

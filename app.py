@@ -91,6 +91,38 @@ def validate_password(password: str) -> str | None:
     return None
 
 
+# ── MET lookup table (exercise type × intensity) ─────────────────────────────
+# Values based on the Compendium of Physical Activities (Ainsworth et al.)
+# Formula: kcal = MET × body_weight_kg × duration_hours
+MET_TABLE = {
+    'running':       {'Low': 6.0,  'Medium': 9.8,  'High': 12.8},
+    'cycling':       {'Low': 4.0,  'Medium': 6.8,  'High': 10.0},
+    'swimming':      {'Low': 5.8,  'Medium': 7.0,  'High': 9.8 },
+    'weightlifting': {'Low': 3.0,  'Medium': 5.0,  'High': 6.0 },
+    'yoga':          {'Low': 2.5,  'Medium': 3.0,  'High': 4.0 },
+    'hiit':          {'Low': 6.0,  'Medium': 8.0,  'High': 10.0},
+    'walking':       {'Low': 2.5,  'Medium': 3.5,  'High': 4.5 },
+    'pilates':       {'Low': 2.8,  'Medium': 3.5,  'High': 4.5 },
+    'dancing':       {'Low': 3.0,  'Medium': 5.0,  'High': 7.8 },
+    'boxing':        {'Low': 5.0,  'Medium': 7.8,  'High': 10.5},
+    'rowing':        {'Low': 4.8,  'Medium': 7.0,  'High': 10.0},
+    'elliptical':    {'Low': 4.0,  'Medium': 6.0,  'High': 8.5 },
+    'jump rope':     {'Low': 8.8,  'Medium': 11.0, 'High': 12.3},
+    'basketball':    {'Low': 4.5,  'Medium': 6.5,  'High': 8.0 },
+    'football':      {'Low': 5.0,  'Medium': 7.0,  'High': 9.0 },
+    'tennis':        {'Low': 5.0,  'Medium': 7.0,  'High': 9.0 },
+    # fallback for any unlisted exercise
+    '_default':      {'Low': 3.5,  'Medium': 6.0,  'High': 9.0 },
+}
+
+def est_kcal(workout_type: str, intensity: str, duration_mins: float, weight_kg: float) -> int:
+    """Return estimated kcal burned using the MET formula."""
+    key     = workout_type.strip().lower()
+    row     = MET_TABLE.get(key, MET_TABLE['_default'])
+    met     = row.get(str(intensity).capitalize(), 6.0)
+    return int(met * weight_kg * (duration_mins / 60))
+
+
 # ── Routes ────────────────────────────────────────────────────────────────────
 
 @app.route('/')
@@ -139,14 +171,16 @@ def overview():
     meal_list    = [d.to_dict() for d in meal_docs]
     today_meals  = [m for m in meal_list if m.get('date') == today]
 
-    # MET-based calorie estimator (uses user weight if available, else 70 kg)
+    # MET-based calorie estimator (type + intensity lookup)
     user_weight = float(current_user.starting_weight or 70)
-    MET = {'Low': 3.5, 'Medium': 6.0, 'High': 9.0}
 
     def est_calories(w):
-        met  = MET.get(str(w.get('intensity', 'Medium')).capitalize(), 6.0)
-        mins = float(w.get('duration', 0))
-        return met * user_weight * (mins / 60)
+        return est_kcal(
+            w.get('workout_type', ''),
+            w.get('intensity', 'Medium'),
+            float(w.get('duration', 0)),
+            user_weight,
+        )
 
     calories_burned  = int(sum(est_calories(w) for w in workout_list))
     workout_count    = len(workout_list)
@@ -202,6 +236,17 @@ def workout():
     )
     today = datetime.date.today().isoformat()
     now   = datetime.datetime.now().strftime('%H:%M')
+    user_weight = float(current_user.starting_weight or 70)
+
+    # Annotate each workout with estimated kcal burned
+    for w in workouts:
+        w['est_kcal'] = est_kcal(
+            w.get('workout_type', ''),
+            w.get('intensity', 'Medium'),
+            float(w.get('duration', 0)),
+            user_weight,
+        )
+
     return render_template('workout_tracker.html', workouts=workouts, today=today, now=now)
 
 
