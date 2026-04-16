@@ -147,7 +147,7 @@
               Calories Burned
             </h3>
             <div class="card-stat">{{ calories_burned }}</div>
-            <div class="card-sub">kcal today</div>
+            <div class="card-sub">overall</div>
           </div>
         </div>
 
@@ -181,7 +181,7 @@
               Meals Logged
             </h3>
             <div class="card-stat">{{ meal_count }}</div>
-            <div class="card-sub">meals today</div>
+            <div class="card-sub">overall</div>
           </div>
         </div>
 
@@ -220,7 +220,12 @@
                 data-calories="{{ weekly_calories | tojson }}">
               </canvas>
               <div class="chart-coming-soon">
-                <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
                 Coming Soon
               </div>
             </div>

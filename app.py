@@ -1,17 +1,29 @@
 import os
 import re
 import datetime
+from dotenv import load_dotenv
 import firebase_admin
 from firebase_admin import credentials, firestore, storage
 from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 import numpy as np
+import google.generativeai as genai
+
+load_dotenv()
 
 # ── App init ──────────────────────────────────────────────────────────────────
 app = Flask(__name__)
 app.config['SECRET_KEY']          = os.environ.get('SECRET_KEY', 'dev-secret-key')
 app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024   # 5 MB max upload
+
+# ── Gemini AI init ────────────────────────────────────────────────────────────────────
+_gemini_key = os.environ.get('GEMINI_API_KEY', '')
+if _gemini_key and _gemini_key != 'your_gemini_api_key_here':
+    genai.configure(api_key=_gemini_key)
+    gemini_model = genai.GenerativeModel('gemini-1.5-flash')
+else:
+    gemini_model = None  # API key not set — AI insights disabled
 
 # ── Firebase init ─────────────────────────────────────────────────────────────
 cred = credentials.Certificate('serviceAccountKey.json')
@@ -358,12 +370,37 @@ def progress():
         }
 
     today = datetime.date.today().isoformat()
+
+    # ── Gemini AI Insight ─────────────────────────────────────────────────────
+    ai_insight = None
+    if gemini_model and prediction and len(logs) >= 2:
+        try:
+            prompt = f"""You are an encouraging fitness coach inside a health tracking app called VitCheck.
+Here is the user's weight data:
+- Name: {current_user.name}
+- Current weight: {logs[0]['weight']} kg
+- Starting weight: {current_user.starting_weight} kg
+- Target weight: {current_user.target_weight} kg
+- Trend: {prediction['trend']} at {abs(prediction['slope']):.3f} kg per log entry
+- Next predicted weight: {prediction['next_weight']} kg
+- Total entries logged: {len(logs)}
+
+Write exactly 2 short sentences:
+1. A positive observation about their progress.
+2. One specific, actionable tip to help them reach their goal.
+Be warm, concise, and motivating. Do not use bullet points or markdown."""
+            resp = gemini_model.generate_content(prompt)
+            ai_insight = resp.text.strip()
+        except Exception:
+            ai_insight = None  # silent fallback — page still works without it
+
     return render_template('progress.html',
         logs=logs,
         prediction=prediction,
         chart_labels=chart_labels,
         chart_weights=chart_weights,
         today=today,
+        ai_insight=ai_insight,
     )
 
 

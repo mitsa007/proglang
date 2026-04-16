@@ -1766,6 +1766,43 @@ html.dark .stat-item {
   padding: .25rem 1rem .75rem;
 }
 
+/* ── AI Coach Insight Card ──────────────────────────────────── */
+.ai-insight-card {
+  border-left: 3px solid var(--brown);
+  background: linear-gradient(135deg, var(--white) 0%, var(--sand) 100%);
+}
+
+html.dark .ai-insight-card {
+  background: linear-gradient(135deg, rgba(255,255,255,.06) 0%, rgba(255,255,255,.02) 100%);
+}
+
+.ai-insight-card h3 {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+
+.ai-badge {
+  margin-left: auto;
+  font-size: .65rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  background: var(--brown);
+  color: var(--white);
+  padding: .2rem .55rem;
+  border-radius: 99px;
+}
+
+.ai-insight-text {
+  margin-top: .75rem;
+  font-size: .93rem;
+  color: var(--text-main);
+  line-height: 1.7;
+}
+
+html.dark .ai-insight-text { color: var(--text-muted); }
+
 /* Calorie formula info note below log form */
 .cal-info-note {
   display: flex;

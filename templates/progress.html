@@ -154,12 +154,12 @@
                     </span>
                   </div>
                   <div style="grid-column:1/-1; background:var(--off-white); border:1px solid var(--border); border-radius:var(--radius-sm); padding:1rem; display:flex; flex-direction:column; gap:.3rem;">
-                    <span style="font-size:.72rem; font-weight:600; text-transform:uppercase; letter-spacing:.07em; color:var(--text-muted);">Insight</span>
+                    <span style="font-size:.72rem; font-weight:600; text-transform:uppercase; letter-spacing:.07em; color:var(--text-muted);">Trend Insight</span>
                     <p style="font-size:.875rem; color:var(--text-main); line-height:1.5;">
                       {% if prediction.trend == 'decreasing' %}
-                        🎉 You're on track! Your weight is steadily decreasing. Keep maintaining your current routine.
+                        Your weight is steadily decreasing — you are on track!
                       {% else %}
-                        ⚠️ Your weight is trending upward. Consider reviewing your diet and activity levels.
+                        Your weight is trending upward. Consider reviewing your diet and activity levels.
                       {% endif %}
                     </p>
                   </div>
@@ -175,6 +175,20 @@
         </div>
 
       </div>
+
+      <!-- Gemini AI Coach Insight (full width) -->
+      {% if ai_insight %}
+      <div class="card ai-insight-card" style="margin-bottom:1.25rem;">
+        <div class="card-body">
+          <h3>
+            <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 14H11v-2h2zm0-4H11V7h2z"/></svg>
+            AI Coach Insight
+            <span class="ai-badge">Gemini</span>
+          </h3>
+          <p class="ai-insight-text">{{ ai_insight }}</p>
+        </div>
+      </div>
+      {% endif %}
 
       <!-- Weight Progress Chart (full width) -->
       <div class="card">
