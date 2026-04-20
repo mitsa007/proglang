@@ -1825,6 +1825,15 @@ html.dark .ai-insight-text { color: var(--text-muted); }
 
 html.dark .cal-info-note { background: rgba(255,255,255,.06); }
 
+/* Weekly Change trend colours */
+.weekly-change-val {
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+.trend-down { color: #22c55e; }
+.trend-up   { color: #f97316; }
+
 /* ============================================================
    RESPONSIVE GRIDS — Meal Tracker & Progress
    ============================================================ */
