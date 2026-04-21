@@ -26,6 +26,58 @@ else:
     gemini_client = None
     print('[Gemini] No API key found — AI insights disabled.')
 
+
+def gemini_generate(prompt: str, retries: int = 2) -> str | None:
+    """Call Gemini with simple retry on 429 rate-limit errors."""
+    import time
+    if not gemini_client:
+        return None
+    models_to_try = ['gemini-2.0-flash', 'gemini-flash-latest']
+    for model in models_to_try:
+        for attempt in range(retries):
+            try:
+                resp = gemini_client.models.generate_content(
+                    model=model, contents=prompt
+                )
+                print(f'[Gemini] OK on {model}')
+                return resp.text.strip()
+            except Exception as e:
+                err = str(e)
+                if '429' in err and attempt < retries - 1:
+                    wait = 2 ** attempt
+                    print(f'[Gemini] Rate-limited on {model} — retrying in {wait}s…')
+                    time.sleep(wait)
+                elif '429' in err:
+                    print(f'[Gemini] {model} quota exhausted — trying next model…')
+                    break
+                else:
+                    print(f'[Gemini] Error on {model}: {e}')
+                    return None
+    print('[Gemini] All models exhausted — returning None')
+    return None
+
+
+# ── Simple TTL cache (5 min) for Gemini responses ─────────────────────────────
+import hashlib as _hashlib
+_gemini_cache: dict = {}          # { cache_key: (result_str, expires_at) }
+_CACHE_TTL = 300                  # seconds
+
+
+def gemini_cached(prompt: str, cache_key: str) -> str | None:
+    """Return cached Gemini result if fresh, otherwise call API and cache it."""
+    import time
+    now = time.time()
+    if cache_key in _gemini_cache:
+        result, expires = _gemini_cache[cache_key]
+        if now < expires:
+            print(f'[Gemini] Cache hit for {cache_key[:20]}…')
+            return result
+    result = gemini_generate(prompt)
+    if result is not None:
+        _gemini_cache[cache_key] = (result, now + _CACHE_TTL)
+    return result
+
+
 # ── Firebase init ─────────────────────────────────────────────────────────────
 cred = credentials.Certificate('serviceAccountKey.json')
 firebase_admin.initialize_app(cred, {
@@ -223,6 +275,17 @@ def overview():
         )
         weekly_cals.append(round(day_total, 1))
 
+    # ── Fasting status ────────────────────────────────────────────────────────
+    fasting_doc = None
+    fasting_docs = (
+        fs.collection('fasting_logs')
+        .where('user_id', '==', u)
+        .where('is_active', '==', True)
+        .get()
+    )
+    if fasting_docs:
+        fasting_doc = fasting_docs[0].to_dict()
+
     return render_template('overview.html',
         user=current_user,
         calories_burned=calories_burned,
@@ -234,7 +297,227 @@ def overview():
         progress_message='You are doing great! Keep going!',
         weekly_labels=day_labels,
         weekly_calories=weekly_cals,
+        fasting=fasting_doc,
     )
+
+
+# ── AI API: Calorie Estimator ─────────────────────────────────────────────────
+@app.route('/api/estimate_calories', methods=['POST'])
+@login_required
+def api_estimate_calories():
+    from flask import jsonify
+    meal_name = request.json.get('meal_name', '').strip()
+    if not meal_name:
+        return jsonify({'calories': 0, 'error': 'No meal name provided'}), 400
+    if not gemini_client:
+        return jsonify({'calories': 400, 'note': 'AI unavailable — using default'}), 200
+    prompt = (
+        f'Estimate the calories in one typical serving of "{meal_name}". '
+        'Return only a single integer number. No text, no explanation.'
+    )
+    text = gemini_generate(prompt)
+    if text is None:
+        return jsonify({'calories': 400, 'note': 'Estimation unavailable'}), 200
+    cal = int(''.join(filter(str.isdigit, text[:6])) or '400')
+    return jsonify({'calories': cal})
+
+
+# ── AI API: Chatbot ───────────────────────────────────────────────────────────
+@app.route('/api/chat', methods=['POST'])
+@login_required
+def api_chat():
+    from flask import jsonify
+    import json as _json
+    message = request.json.get('message', '').strip()
+    if not message:
+        return jsonify({'reply': 'Please type a message.'}), 400
+    today = datetime.date.today().isoformat()
+    now   = datetime.datetime.now().strftime('%H:%M')
+    u     = current_user.username
+
+    # Save user message to history
+    fs.collection('chat_logs').add({
+        'user_id': u, 'role': 'user',
+        'message': message,
+        'timestamp': datetime.datetime.utcnow().isoformat(),
+    })
+
+    if not gemini_client:
+        reply = 'AI is not configured. Please add your Gemini API key to the .env file.'
+        fs.collection('chat_logs').add({
+            'user_id': u, 'role': 'bot', 'message': reply,
+            'timestamp': datetime.datetime.utcnow().isoformat(),
+        })
+        return jsonify({'reply': reply, 'action': None})
+
+    prompt = f"""You are VitCheck's AI fitness assistant. Parse the user message and respond with valid JSON only.
+
+User: {current_user.name}
+Today: {today}  Time: {now}
+
+Supported intents:
+- log_meal: extract meal_name and estimate calories
+- log_workout: extract workout_type (Running/Swimming/Cycling/Weightlifting/Yoga/Walking/HIIT/Other), duration (int, minutes), intensity (Low/Medium/High)
+- log_weight: extract weight (float, kg)
+- start_fast: user wants to begin a fast
+- end_fast: user wants to end their fast
+- general_question: anything else — answer helpfully
+
+Respond ONLY with this JSON (no markdown, no backticks):
+{{
+  "intent": "<intent>",
+  "data": {{ ... extracted fields ... }},
+  "reply": "<friendly confirmation or answer in 1-2 sentences>"
+}}
+
+User message: {message}"""
+
+    text = gemini_generate(prompt)
+    if text is None:
+        parsed = {'intent': 'general_question', 'data': {}, 'reply': 'AI is temporarily unavailable. Please try again in a moment.'}
+    else:
+        raw = text.lstrip('`').rstrip('`')
+        if raw.startswith('json'):
+            raw = raw[4:]
+        try:
+            parsed = _json.loads(raw)
+        except Exception as e:
+            app.logger.error(f'[Gemini] Chat parse error: {e}')
+            parsed = {'intent': 'general_question', 'data': {}, 'reply': 'Sorry, I had trouble understanding that. Please try again.'}
+
+    intent = parsed.get('intent', 'general_question')
+    data   = parsed.get('data', {})
+    reply  = parsed.get('reply', 'Done!')
+
+    # ── Execute the action ────────────────────────────────────────────────────
+    if intent == 'log_meal':
+        fs.collection('meals').add({
+            'user_id':   u,
+            'meal_name': data.get('meal_name', message),
+            'calories':  int(data.get('estimated_calories', data.get('calories', 400))),
+            'date':      today,
+            'time':      now,
+        })
+    elif intent == 'log_workout':
+        fs.collection('workouts').add({
+            'user_id':      u,
+            'workout_type': data.get('workout_type', 'Other'),
+            'duration':     int(data.get('duration', 30)),
+            'intensity':    data.get('intensity', 'Medium'),
+            'date':         today,
+            'time':         now,
+        })
+    elif intent == 'log_weight':
+        fs.collection('weight_logs').add({
+            'user_id': u,
+            'weight':  float(data.get('weight', 0)),
+            'date':    today,
+        })
+    elif intent == 'start_fast':
+        # Deactivate any existing active fast first
+        for doc in fs.collection('fasting_logs').where('user_id','==',u).where('is_active','==',True).get():
+            doc.reference.update({'is_active': False})
+        fs.collection('fasting_logs').add({
+            'user_id':    u,
+            'start_time': datetime.datetime.utcnow().isoformat(),
+            'end_time':   None,
+            'calories_burned': None,
+            'is_active':  True,
+        })
+    elif intent == 'end_fast':
+        active = fs.collection('fasting_logs').where('user_id','==',u).where('is_active','==',True).get()
+        for doc in active:
+            d = doc.to_dict()
+            start = datetime.datetime.fromisoformat(d['start_time'])
+            end   = datetime.datetime.utcnow()
+            hours = (end - start).total_seconds() / 3600
+            # BMR-based calorie burn: ~0.9 kcal/kg/hr while fasting
+            weight_kg = float(current_user.starting_weight or 70)
+            kcal_burned = round(0.9 * weight_kg * hours, 1)
+            doc.reference.update({
+                'end_time':       end.isoformat(),
+                'calories_burned': kcal_burned,
+                'is_active':       False,
+                'duration_hours':  round(hours, 2),
+            })
+            reply = f'{reply} You fasted for {round(hours, 1)} hours and burned approximately {kcal_burned} kcal.'
+
+    # Save bot reply to history
+    fs.collection('chat_logs').add({
+        'user_id': u, 'role': 'bot', 'message': reply,
+        'timestamp': datetime.datetime.utcnow().isoformat(),
+        'intent': intent,
+    })
+    return jsonify({'reply': reply, 'action': intent})
+
+
+# ── AI API: Chat History ──────────────────────────────────────────────────────
+@app.route('/api/chat_history')
+@login_required
+def api_chat_history():
+    from flask import jsonify
+    docs = (
+        fs.collection('chat_logs')
+        .where('user_id', '==', current_user.username)
+        .get()
+    )
+    history = sorted(
+        [d.to_dict() for d in docs],
+        key=lambda x: x.get('timestamp', '')
+    )[-40:]  # last 40 messages
+    return jsonify(history)
+
+
+# ── API: Start / End Fast (manual buttons) ────────────────────────────────────
+@app.route('/api/start_fast', methods=['POST'])
+@login_required
+def api_start_fast():
+    from flask import jsonify
+    u = current_user.username
+    for doc in fs.collection('fasting_logs').where('user_id','==',u).where('is_active','==',True).get():
+        doc.reference.update({'is_active': False})
+    fs.collection('fasting_logs').add({
+        'user_id':    u,
+        'start_time': datetime.datetime.utcnow().isoformat(),
+        'end_time':   None,
+        'calories_burned': None,
+        'is_active':  True,
+    })
+    return jsonify({'status': 'started'})
+
+
+@app.route('/api/end_fast', methods=['POST'])
+@login_required
+def api_end_fast():
+    from flask import jsonify
+    u = current_user.username
+    weight_kg = float(current_user.starting_weight or 70)
+    result = {'status': 'none_active'}
+    for doc in fs.collection('fasting_logs').where('user_id','==',u).where('is_active','==',True).get():
+        d = doc.to_dict()
+        start = datetime.datetime.fromisoformat(d['start_time'])
+        end   = datetime.datetime.utcnow()
+        hours = (end - start).total_seconds() / 3600
+        kcal  = round(0.9 * weight_kg * hours, 1)
+        doc.reference.update({
+            'end_time':        end.isoformat(),
+            'calories_burned': kcal,
+            'is_active':       False,
+            'duration_hours':  round(hours, 2),
+        })
+        result = {'status': 'ended', 'hours': round(hours, 1), 'calories_burned': kcal}
+    return jsonify(result)
+
+
+@app.route('/api/fasting_status')
+@login_required
+def api_fasting_status():
+    from flask import jsonify
+    docs = fs.collection('fasting_logs').where('user_id','==',current_user.username).where('is_active','==',True).get()
+    if docs:
+        d = docs[0].to_dict()
+        return jsonify({'is_fasting': True, 'start_time': d['start_time']})
+    return jsonify({'is_fasting': False})
 
 
 # ── Workout ───────────────────────────────────────────────────────────────────
@@ -324,12 +607,17 @@ def meals():
 @app.route('/add_meal', methods=['POST'])
 @login_required
 def add_meal():
+    calories_raw = request.form.get('calories', '0').strip()
+    try:
+        calories = int(float(calories_raw)) if calories_raw else 400
+    except ValueError:
+        calories = 400
     fs.collection('meals').add({
         'user_id':   current_user.username,
         'meal_name': request.form.get('meal_name', '').strip(),
         'date':      request.form.get('date', datetime.date.today().isoformat()),
         'time':      request.form.get('time', '00:00'),
-        'calories':  int(request.form.get('calories', 0)),
+        'calories':  calories,
     })
     return redirect(url_for('meals'))
 
@@ -375,8 +663,7 @@ def progress():
     # ── Gemini AI Insight ─────────────────────────────────────────────────────
     ai_insight = None
     if gemini_client and prediction and len(logs) >= 2:
-        try:
-            prompt = f"""You are an expert fitness coach inside VitCheck. 
+        prompt = f"""You are an expert fitness coach inside VitCheck.
 Your goal is to provide a "Trend Insight" for the user {current_user.name}.
 
 User Stats:
@@ -390,14 +677,8 @@ Please provide exactly 2 short sentences:
 2. An actionable recommendation: One specific thing they should do today.
 
 Be professional, encouraging, and do not use any markdown or bullets."""
-            resp = gemini_client.models.generate_content(
-                model='gemini-flash-latest',
-                contents=prompt,
-            )
-            ai_insight = resp.text.strip()
-        except Exception as e:
-            app.logger.error(f"[Gemini] AI insight failed: {e}")
-            ai_insight = None  # silent fallback — page still works without it
+        cache_key = f"insight:{current_user.username}:{prediction['trend']}:{prediction['next_weight']}"
+        ai_insight = gemini_cached(prompt, cache_key)
 
     return render_template('progress.html',
         logs=logs,

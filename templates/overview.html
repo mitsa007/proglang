@@ -199,6 +199,28 @@
           </div>
         </div>
 
+        <!-- Fasting Status Card -->
+        <div class="card fasting-card" id="fasting-card">
+          <div class="card-body">
+            <h3>
+              <svg viewBox="0 0 24 24"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+              Fasting
+            </h3>
+            {% if fasting %}
+              <div class="fasting-active">
+                <div class="fasting-pulse"></div>
+                <div class="card-stat" id="fast-timer">—</div>
+                <div class="card-sub">elapsed</div>
+                <button class="btn btn-sm" id="end-fast-btn" style="margin-top:.75rem;width:100%;">End Fast</button>
+              </div>
+            {% else %}
+              <div class="card-stat" style="font-size:1.1rem;color:var(--text-muted);">Not fasting</div>
+              <div class="card-sub">track your window</div>
+              <button class="btn btn-sm" id="start-fast-btn" style="margin-top:.75rem;width:100%;">Start Fast</button>
+            {% endif %}
+          </div>
+        </div>
+
       </div>
 
       <!-- Full-width cards below -->
@@ -266,6 +288,140 @@
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="{{ url_for('static', filename='js/script.js') }}"></script>
-</body>
 
-</html>
+  <!-- ── AI Chatbot Widget ────────────────────────────────────────────── -->
+  <div id="chat-bubble" class="chat-bubble" title="Ask VitCheck AI">
+    <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+  </div>
+
+  <div id="chat-panel" class="chat-panel" aria-hidden="true">
+    <div class="chat-header">
+      <span>VitCheck AI Assistant</span>
+      <span class="chat-badge">Gemini</span>
+      <button id="chat-close" class="chat-close" aria-label="Close chat">&times;</button>
+    </div>
+    <div class="chat-messages" id="chat-messages">
+      <div class="chat-welcome">Hi {{ user.name.split()[0] }}! I can log your meals, workouts, weight, and manage your fast. Just tell me what you did!</div>
+    </div>
+    <div class="chat-input-row">
+      <input type="text" id="chat-input" class="chat-input" placeholder="e.g. I had oatmeal for breakfast..." autocomplete="off">
+      <button id="chat-send" class="chat-send">
+        <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <script>
+  // ── Fasting Timer ─────────────────────────────────────────────────────────
+  const fastStart = {{ ('"' + fasting.start_time + '"') | safe if fasting else 'null' }};
+  const timerEl   = document.getElementById('fast-timer');
+
+  function formatDuration(ms) {
+    const h = Math.floor(ms / 3600000);
+    const m = Math.floor((ms % 3600000) / 60000);
+    return h + 'h ' + String(m).padStart(2,'0') + 'm';
+  }
+
+  if (fastStart && timerEl) {
+    const updateTimer = () => {
+      const elapsed = Date.now() - new Date(fastStart + 'Z').getTime();
+      timerEl.textContent = formatDuration(elapsed);
+    };
+    updateTimer();
+    setInterval(updateTimer, 60000);
+  }
+
+  // Start / End Fast buttons
+  document.getElementById('start-fast-btn')?.addEventListener('click', async () => {
+    await fetch('/api/start_fast', { method: 'POST' });
+    location.reload();
+  });
+  document.getElementById('end-fast-btn')?.addEventListener('click', async () => {
+    const res  = await fetch('/api/end_fast', { method: 'POST' });
+    const data = await res.json();
+    if (data.status === 'ended') {
+      alert(`Fast ended! Duration: ${data.hours}h | Calories burned: ~${data.calories_burned} kcal`);
+    }
+    location.reload();
+  });
+
+  // ── Chat Widget ───────────────────────────────────────────────────────────
+  const bubble   = document.getElementById('chat-bubble');
+  const panel    = document.getElementById('chat-panel');
+  const closeBtn = document.getElementById('chat-close');
+  const msgBox   = document.getElementById('chat-messages');
+  const input    = document.getElementById('chat-input');
+  const sendBtn  = document.getElementById('chat-send');
+  let historyLoaded = false;
+
+  function addMsg(text, role) {
+    const div = document.createElement('div');
+    div.className = 'chat-msg chat-msg-' + role;
+    div.textContent = text;
+    msgBox.appendChild(div);
+    msgBox.scrollTop = msgBox.scrollHeight;
+  }
+
+  function addTyping() {
+    const div = document.createElement('div');
+    div.className = 'chat-msg chat-msg-bot chat-typing';
+    div.id = 'chat-typing';
+    div.innerHTML = '<span></span><span></span><span></span>';
+    msgBox.appendChild(div);
+    msgBox.scrollTop = msgBox.scrollHeight;
+    return div;
+  }
+
+  async function loadHistory() {
+    if (historyLoaded) return;
+    historyLoaded = true;
+    try {
+      const res  = await fetch('/api/chat_history');
+      const data = await res.json();
+      data.forEach(m => addMsg(m.message, m.role));
+    } catch {}
+  }
+
+  bubble.addEventListener('click', () => {
+    const open = panel.classList.toggle('open');
+    panel.setAttribute('aria-hidden', !open);
+    if (open) { loadHistory(); setTimeout(() => input.focus(), 150); }
+  });
+  closeBtn.addEventListener('click', () => {
+    panel.classList.remove('open');
+    panel.setAttribute('aria-hidden', 'true');
+  });
+
+  async function sendMessage() {
+    const msg = input.value.trim();
+    if (!msg) return;
+    input.value = '';
+    addMsg(msg, 'user');
+    const typing = addTyping();
+    sendBtn.disabled = true;
+    try {
+      const res  = await fetch('/api/chat', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ message: msg }),
+      });
+      const data = await res.json();
+      typing.remove();
+      addMsg(data.reply, 'bot');
+      // Reload page if data was logged so stats update
+      if (['log_meal','log_workout','log_weight','start_fast','end_fast'].includes(data.action)) {
+        setTimeout(() => location.reload(), 1800);
+      }
+    } catch {
+      typing.remove();
+      addMsg('Something went wrong. Please try again.', 'bot');
+    }
+    sendBtn.disabled = false;
+  }
+
+  sendBtn.addEventListener('click', sendMessage);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
+  </script>
+
+</body>
+</html>
