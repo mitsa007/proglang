@@ -36,30 +36,34 @@ fs.collection('users').document(USERNAME).set({
     'name':            'Alex Rivera',
     'password':        generate_password_hash('FitDemo1', method='pbkdf2:sha256'),
     'age':             '26',
+    'gender':          'female',
     'height':          '168',
     'goal':            'lose',
-    'starting_weight': '78',
+    'starting_weight': '81.5',
     'target_weight':   '65',
     'photo_url':       '',
 })
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 2. Weight logs — steady downward trend with natural daily fluctuation
+# 2. Weight logs — steady downward trend with natural weekly fluctuation
 # ─────────────────────────────────────────────────────────────────────────────
 print('Adding weight logs…')
 weight_logs = [
     # (days_ago, weight_kg)
-    (30, 78.0),
-    (27, 77.7),
-    (24, 77.5),
-    (21, 77.2),
-    (18, 76.9),
-    (15, 76.6),
-    (12, 76.4),
-    (9,  76.1),
-    (6,  75.8),
-    (3,  75.5),
-    (0,  75.2),   # today — latest
+    (90, 81.5),
+    (83, 80.8),
+    (76, 80.1),
+    (69, 80.3), # slight natural bump
+    (62, 79.5),
+    (55, 78.9),
+    (48, 78.4),
+    (41, 78.6), # bump
+    (34, 77.8),
+    (27, 77.1),
+    (20, 76.5),
+    (13, 75.8),
+    (6,  75.4),
+    (0,  75.1),   # today — latest
 ]
 for days_ago, weight in weight_logs:
     fs.collection('weight_logs').add({

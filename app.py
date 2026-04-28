@@ -57,10 +57,12 @@ def gemini_generate(prompt: str, retries: int = 2) -> str | None:
     return None
 
 
-# ── Simple TTL cache (5 min) for Gemini responses ─────────────────────────────
+# ── Gemini insight cache (24 h) ───────────────────────────────────────────────
+# Keyed by user + latest weight value so it only refreshes when new data is logged.
+# This keeps API calls to ~1 per user per day on the Progress page.
 import hashlib as _hashlib
-_gemini_cache: dict = {}          # { cache_key: (result_str, expires_at) }
-_CACHE_TTL = 300                  # seconds
+_gemini_cache: dict = {}   # { cache_key: (result_str, expires_at) }
+_CACHE_TTL = 86400         # 24 hours — regenerates only when user logs new weight
 
 
 def gemini_cached(prompt: str, cache_key: str) -> str | None:
@@ -99,6 +101,7 @@ class User(UserMixin):
         self.name           = data.get('name')
         self.password       = data.get('password')
         self.age            = data.get('age')
+        self.gender         = data.get('gender')
         self.height         = data.get('height')
         self.goal           = data.get('goal')
         self.starting_weight = data.get('starting_weight')
@@ -143,6 +146,46 @@ def progress_pct(starting, target, current):
         return min(100, int((done / total) * 100)) if total > 0 else 100
     except Exception:
         return 0
+
+
+def compute_calorie_goal(user) -> int:
+    """
+    Calculate a personalised daily calorie goal using Mifflin-St Jeor BMR
+    (gender-neutral version) adjusted for a lightly-active lifestyle and
+    the user's stated goal.
+
+    Falls back to 2000 kcal if profile data is incomplete.
+    """
+    try:
+        weight = float(user.starting_weight or 0)
+        height = float(user.height or 0)
+        age    = float(user.age or 0)
+        if weight <= 0 or height <= 0 or age <= 0:
+            return 2000
+
+        # Mifflin-St Jeor formula
+        gender = (user.gender or '').lower()
+        if gender == 'male':
+            bmr = (10 * weight) + (6.25 * height) - (5 * age) + 5
+        elif gender == 'female':
+            bmr = (10 * weight) + (6.25 * height) - (5 * age) - 161
+        else:
+            # Average if unspecified/other
+            bmr = (10 * weight) + (6.25 * height) - (5 * age) - 78
+
+        # Lightly active multiplier (default — no activity level stored yet)
+        tdee = bmr * 1.375
+
+        goal = (user.goal or '').lower()
+        if any(k in goal for k in ('lose', 'loss', 'cut', 'deficit')):
+            tdee -= 500          # ~0.5 kg/week deficit
+        elif any(k in goal for k in ('gain', 'muscle', 'bulk', 'surplus')):
+            tdee += 300          # lean bulk surplus
+        # 'maintain' or anything else → no adjustment
+
+        return max(1200, int(round(tdee, -1)))   # never go below 1200
+    except Exception:
+        return 2000
 
 
 def validate_password(password: str) -> str | None:
@@ -205,6 +248,7 @@ def create_profile():
         'name':            name,
         'password':        generate_password_hash('password', method='pbkdf2:sha256'),
         'age':             request.form.get('age'),
+        'gender':          request.form.get('gender'),
         'height':          None,
         'goal':            request.form.get('goal'),
         'starting_weight': w,
@@ -275,7 +319,7 @@ def overview():
         )
         weekly_cals.append(round(day_total, 1))
 
-    # ── Fasting status ────────────────────────────────────────────────────────
+    # ── Fasting status + history ─────────────────────────────────────────────
     fasting_doc = None
     fasting_docs = (
         fs.collection('fasting_logs')
@@ -285,6 +329,17 @@ def overview():
     )
     if fasting_docs:
         fasting_doc = fasting_docs[0].to_dict()
+
+    # Past completed fasts (most recent 10)
+    all_fasts = [
+        d.to_dict() for d in
+        fs.collection('fasting_logs')
+          .where('user_id', '==', u)
+          .where('is_active', '==', False)
+          .get()
+        if d.to_dict().get('end_time')  # only truly completed ones
+    ]
+    past_fasts = sorted(all_fasts, key=lambda x: x.get('end_time', ''), reverse=True)[:10]
 
     return render_template('overview.html',
         user=current_user,
@@ -298,6 +353,7 @@ def overview():
         weekly_labels=day_labels,
         weekly_calories=weekly_cals,
         fasting=fasting_doc,
+        past_fasts=past_fasts,
     )
 
 
@@ -376,18 +432,20 @@ User message: {message}"""
     if text is None:
         parsed = {'intent': 'general_question', 'data': {}, 'reply': 'AI is temporarily unavailable. Please try again in a moment.'}
     else:
-        raw = text.lstrip('`').rstrip('`')
-        if raw.startswith('json'):
-            raw = raw[4:]
+        import re as _re
+        json_match = _re.search(r'\{[\s\S]*\}', text)
         try:
-            parsed = _json.loads(raw)
+            parsed = _json.loads(json_match.group()) if json_match else {}
+            if not parsed.get('intent'):
+                raise ValueError('missing intent')
         except Exception as e:
-            app.logger.error(f'[Gemini] Chat parse error: {e}')
+            print(f'[Chat] JSON parse error: {e} | raw: {text[:200]}')
             parsed = {'intent': 'general_question', 'data': {}, 'reply': 'Sorry, I had trouble understanding that. Please try again.'}
 
     intent = parsed.get('intent', 'general_question')
     data   = parsed.get('data', {})
     reply  = parsed.get('reply', 'Done!')
+    print(f'[Chat] intent={intent} | user={u} | msg={message[:50]}')
 
     # ── Execute the action ────────────────────────────────────────────────────
     if intent == 'log_meal':
@@ -491,7 +549,8 @@ def api_start_fast():
 def api_end_fast():
     from flask import jsonify
     u = current_user.username
-    weight_kg = float(current_user.starting_weight or 70)
+    # Use most recent logged weight for accuracy; fall back to starting_weight
+    weight_kg = get_current_weight(u) or float(current_user.starting_weight or 70)
     result = {'status': 'none_active'}
     for doc in fs.collection('fasting_logs').where('user_id','==',u).where('is_active','==',True).get():
         d = doc.to_dict()
@@ -504,6 +563,7 @@ def api_end_fast():
             'calories_burned': kcal,
             'is_active':       False,
             'duration_hours':  round(hours, 2),
+            'weight_used_kg':  weight_kg,
         })
         result = {'status': 'ended', 'hours': round(hours, 1), 'calories_burned': kcal}
     return jsonify(result)
@@ -597,7 +657,7 @@ def meals():
         meals=meals_list,
         today_meals=today_meals,
         today_calories=today_cals,
-        calorie_goal=1400,
+        calorie_goal=compute_calorie_goal(current_user),
         today=today,
         now=now,
         past_meals_by_date=past_meals_by_date,
@@ -677,7 +737,8 @@ Please provide exactly 2 short sentences:
 2. An actionable recommendation: One specific thing they should do today.
 
 Be professional, encouraging, and do not use any markdown or bullets."""
-        cache_key = f"insight:{current_user.username}:{prediction['trend']}:{prediction['next_weight']}"
+        latest_weight = logs[0].get('weight', 0)   # changes only when new entry logged
+        cache_key = f"insight:{current_user.username}:{latest_weight}:{prediction['trend']}"
         ai_insight = gemini_cached(prompt, cache_key)
 
     return render_template('progress.html',
@@ -723,6 +784,7 @@ def update_profile():
     update_data = {
         'name':            request.form.get('name'),
         'age':             request.form.get('age'),
+        'gender':          request.form.get('gender'),
         'height':          request.form.get('height'),
         'starting_weight': request.form.get('starting_weight'),
         'target_weight':   request.form.get('target_weight'),
@@ -829,7 +891,7 @@ def register():
         fs.collection('users').document(username).set({
             'username': username, 'name': request.form['name'],
             'password': hashed,
-            'age': None, 'height': None, 'goal': None,
+            'age': None, 'gender': None, 'height': None, 'goal': None,
             'starting_weight': None, 'target_weight': None, 'photo_url': '',
         })
         return redirect(url_for('login'))

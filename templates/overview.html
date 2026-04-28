@@ -134,6 +134,58 @@
         </div>
       </div>
 
+      <!-- AI Assistant — very top -->
+      <div class="card" id="ai-chat-card" style="margin-bottom:1.25rem;">
+        <div class="card-body" style="padding:0;">
+
+          <div class="ai-chat-header">
+            <div class="ai-chat-header-left">
+              <div class="ai-chat-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke="#fff" stroke-width="2" fill="none"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+              </div>
+              <div>
+                <div class="ai-chat-title">VitCheck AI Assistant</div>
+                <div class="ai-chat-sub">Log meals, workouts, weight &amp; fasting</div>
+              </div>
+            </div>
+            <span class="ai-gemini-badge">Powered by Gemini</span>
+          </div>
+
+          <div class="ai-chat-messages" id="chat-messages">
+            <div class="ai-chat-welcome">
+              <div class="ai-chat-welcome-icon">👋</div>
+              <div>
+                <strong>Hi {{ user.name.split()[0] }}!</strong> I can log your meals, workouts, weight, and manage your fast.
+                <br>Just tell me what you did today!
+              </div>
+            </div>
+          </div>
+
+          <div class="ai-suggestions">
+            <button class="ai-suggestion-chip" onclick="useChip(this)">🍳 Log breakfast</button>
+            <button class="ai-suggestion-chip" onclick="useChip(this)">🏃 Log a run</button>
+            <button class="ai-suggestion-chip" onclick="useChip(this)">⚖️ Log my weight</button>
+            <button class="ai-suggestion-chip" onclick="useChip(this)">⏱️ Start fasting</button>
+            <button class="ai-suggestion-chip" onclick="useChip(this)">🛑 End my fast</button>
+          </div>
+
+          <div class="ai-chat-input-row">
+            <input type="text" id="chat-input" class="ai-chat-input"
+              placeholder="e.g. I had oatmeal and coffee for breakfast..." autocomplete="off">
+            <button id="chat-send" class="ai-chat-send" title="Send">
+              <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
+                <line x1="22" y1="2" x2="11" y2="13"/>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+              </svg>
+            </button>
+          </div>
+
+        </div>
+      </div>
+
       <!-- Stat cards: always 4 equal columns -->
       <div class="stat-cards-grid">
 
@@ -199,32 +251,11 @@
           </div>
         </div>
 
-        <!-- Fasting Status Card -->
-        <div class="card fasting-card" id="fasting-card">
-          <div class="card-body">
-            <h3>
-              <svg viewBox="0 0 24 24"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
-              Fasting
-            </h3>
-            {% if fasting %}
-              <div class="fasting-active">
-                <div class="fasting-pulse"></div>
-                <div class="card-stat" id="fast-timer">—</div>
-                <div class="card-sub">elapsed</div>
-                <button class="btn btn-sm" id="end-fast-btn" style="margin-top:.75rem;width:100%;">End Fast</button>
-              </div>
-            {% else %}
-              <div class="card-stat" style="font-size:1.1rem;color:var(--text-muted);">Not fasting</div>
-              <div class="card-sub">track your window</div>
-              <button class="btn btn-sm" id="start-fast-btn" style="margin-top:.75rem;width:100%;">Start Fast</button>
-            {% endif %}
-          </div>
-        </div>
-
       </div>
 
       <!-- Full-width cards below -->
       <div class="overview-grid">
+
 
         <!-- Weekly Activity Chart -->
         <div class="card full-width">
@@ -251,6 +282,91 @@
                 Coming Soon
               </div>
             </div>
+          </div>
+        </div>
+
+        <!-- Fasting: status + history side by side -->
+        <div class="card full-width">
+          <div class="fasting-panel-grid" style="display:grid; grid-template-columns:260px 1fr; gap:0; min-height:180px;">
+
+            <!-- Left: fasting controls -->
+            <div style="padding:1.25rem; border-right:1px solid var(--border); display:flex; flex-direction:column; justify-content:space-between;">
+              <div>
+                <h3 style="margin-bottom:.75rem;">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+                  Fasting
+                </h3>
+
+                <!-- Result banner -->
+                <div id="fast-result" style="display:none; margin-bottom:.75rem;
+                  background:linear-gradient(135deg,var(--light-brown),var(--brown));
+                  color:#fff; border-radius:var(--radius-sm); padding:.65rem;
+                  font-size:.8rem; text-align:center;">
+                  <div style="font-size:1rem;font-weight:700;" id="fast-result-headline"></div>
+                  <div id="fast-result-detail" style="opacity:.88;margin-top:.15rem;"></div>
+                </div>
+
+                {% if fasting %}
+                  <div class="fasting-active">
+                    <div class="fasting-pulse"></div>
+                    <div class="card-stat" id="fast-timer" style="font-size:1.6rem;">—</div>
+                    <div class="card-sub">elapsed</div>
+                  </div>
+                {% else %}
+                  <div class="card-stat" style="font-size:1rem;color:var(--text-muted);">Not fasting</div>
+                  <div class="card-sub">track your fasting window</div>
+                {% endif %}
+              </div>
+
+              {% if fasting %}
+                <button class="btn btn-sm" id="end-fast-btn" style="width:100%;margin-top:.75rem;">End Fast</button>
+              {% else %}
+                <button class="btn btn-sm" id="start-fast-btn" style="width:100%;margin-top:.75rem;">Start Fast</button>
+              {% endif %}
+            </div>
+
+            <!-- Right: fasting history -->
+            <div style="padding:1.25rem; overflow-x:auto;">
+              <h3 style="margin-bottom:.75rem;">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                </svg>
+                Fasting History
+              </h3>
+              {% if past_fasts %}
+              <table style="width:100%;border-collapse:collapse;font-size:.84rem;">
+                <thead>
+                  <tr style="border-bottom:2px solid var(--border);">
+                    <th style="text-align:left;padding:.4rem .65rem;color:var(--text-muted);font-weight:600;">Date</th>
+                    <th style="text-align:center;padding:.4rem .65rem;color:var(--text-muted);font-weight:600;">Duration</th>
+                    <th style="text-align:center;padding:.4rem .65rem;color:var(--text-muted);font-weight:600;">Calories Burned</th>
+                    <th style="text-align:center;padding:.4rem .65rem;color:var(--text-muted);font-weight:600;">Weight Used</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for fast in past_fasts %}
+                  {% set end_dt = fast.end_time[:10] if fast.end_time else '—' %}
+                  {% set dur_h = fast.duration_hours | round(1) if fast.duration_hours else 0 %}
+                  {% set kcal = fast.calories_burned | round(1) if fast.calories_burned else 0 %}
+                  {% set w_used = fast.weight_used_kg if fast.weight_used_kg else '—' %}
+                  <tr style="border-bottom:1px solid var(--border);">
+                    <td style="padding:.5rem .65rem;color:var(--text-main);">{{ end_dt }}</td>
+                    <td style="padding:.5rem .65rem;text-align:center;font-weight:600;color:var(--dark-brown);">{{ dur_h }}h</td>
+                    <td style="padding:.5rem .65rem;text-align:center;">
+                      <span style="background:var(--sand);color:var(--brown);font-weight:700;
+                        padding:.2rem .55rem;border-radius:999px;">~{{ kcal }} kcal</span>
+                    </td>
+                    <td style="padding:.5rem .65rem;text-align:center;color:var(--text-muted);">{{ w_used }} kg</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+              {% else %}
+              <div style="color:var(--text-muted);font-size:.85rem;padding:.5rem 0;">No completed fasts yet. Start your first fast!</div>
+              {% endif %}
+            </div>
+
           </div>
         </div>
 
@@ -282,34 +398,13 @@
         </div>
 
       </div><!-- /.overview-grid -->
+
     </main>
   </div><!-- /.app-wrapper -->
 
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="{{ url_for('static', filename='js/script.js') }}"></script>
-
-  <!-- ── AI Chatbot Widget ────────────────────────────────────────────── -->
-  <div id="chat-bubble" class="chat-bubble" title="Ask VitCheck AI">
-    <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-  </div>
-
-  <div id="chat-panel" class="chat-panel" aria-hidden="true">
-    <div class="chat-header">
-      <span>VitCheck AI Assistant</span>
-      <span class="chat-badge">Gemini</span>
-      <button id="chat-close" class="chat-close" aria-label="Close chat">&times;</button>
-    </div>
-    <div class="chat-messages" id="chat-messages">
-      <div class="chat-welcome">Hi {{ user.name.split()[0] }}! I can log your meals, workouts, weight, and manage your fast. Just tell me what you did!</div>
-    </div>
-    <div class="chat-input-row">
-      <input type="text" id="chat-input" class="chat-input" placeholder="e.g. I had oatmeal for breakfast..." autocomplete="off">
-      <button id="chat-send" class="chat-send">
-        <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-      </button>
-    </div>
-  </div>
 
   <script>
   // ── Fasting Timer ─────────────────────────────────────────────────────────
@@ -337,60 +432,73 @@
     location.reload();
   });
   document.getElementById('end-fast-btn')?.addEventListener('click', async () => {
+    const btn = document.getElementById('end-fast-btn');
+    btn.disabled = true;
+    btn.textContent = 'Ending…';
     const res  = await fetch('/api/end_fast', { method: 'POST' });
     const data = await res.json();
     if (data.status === 'ended') {
-      alert(`Fast ended! Duration: ${data.hours}h | Calories burned: ~${data.calories_burned} kcal`);
+      const resultEl   = document.getElementById('fast-result');
+      const headlineEl = document.getElementById('fast-result-headline');
+      const detailEl   = document.getElementById('fast-result-detail');
+      headlineEl.textContent = `⏱️ ${data.hours}h fast complete!`;
+      detailEl.textContent   = `~${data.calories_burned} kcal burned`;
+      resultEl.style.display = 'block';
+      setTimeout(() => location.reload(), 2500);
+    } else {
+      location.reload();
     }
-    location.reload();
   });
 
-  // ── Chat Widget ───────────────────────────────────────────────────────────
-  const bubble   = document.getElementById('chat-bubble');
-  const panel    = document.getElementById('chat-panel');
-  const closeBtn = document.getElementById('chat-close');
-  const msgBox   = document.getElementById('chat-messages');
-  const input    = document.getElementById('chat-input');
-  const sendBtn  = document.getElementById('chat-send');
-  let historyLoaded = false;
+  // ── Embedded AI Chat ──────────────────────────────────────────────────────
+  const msgBox  = document.getElementById('chat-messages');
+  const input   = document.getElementById('chat-input');
+  const sendBtn = document.getElementById('chat-send');
 
   function addMsg(text, role) {
-    const div = document.createElement('div');
-    div.className = 'chat-msg chat-msg-' + role;
-    div.textContent = text;
-    msgBox.appendChild(div);
+    const wrap = document.createElement('div');
+    wrap.className = 'ai-msg-wrap ai-msg-wrap-' + role;
+    const bubble = document.createElement('div');
+    bubble.className = 'ai-msg ai-msg-' + role;
+    bubble.textContent = text;
+    wrap.appendChild(bubble);
+    msgBox.appendChild(wrap);
     msgBox.scrollTop = msgBox.scrollHeight;
   }
 
   function addTyping() {
-    const div = document.createElement('div');
-    div.className = 'chat-msg chat-msg-bot chat-typing';
-    div.id = 'chat-typing';
-    div.innerHTML = '<span></span><span></span><span></span>';
-    msgBox.appendChild(div);
+    const wrap = document.createElement('div');
+    wrap.className = 'ai-msg-wrap ai-msg-wrap-bot';
+    wrap.id = 'ai-typing-wrap';
+    const bubble = document.createElement('div');
+    bubble.className = 'ai-msg ai-msg-bot ai-typing';
+    bubble.innerHTML = '<span></span><span></span><span></span>';
+    wrap.appendChild(bubble);
+    msgBox.appendChild(wrap);
     msgBox.scrollTop = msgBox.scrollHeight;
-    return div;
+    return wrap;
   }
 
-  async function loadHistory() {
-    if (historyLoaded) return;
-    historyLoaded = true;
+  // Load history immediately on page load
+  (async () => {
     try {
       const res  = await fetch('/api/chat_history');
       const data = await res.json();
       data.forEach(m => addMsg(m.message, m.role));
     } catch {}
-  }
+  })();
 
-  bubble.addEventListener('click', () => {
-    const open = panel.classList.toggle('open');
-    panel.setAttribute('aria-hidden', !open);
-    if (open) { loadHistory(); setTimeout(() => input.focus(), 150); }
-  });
-  closeBtn.addEventListener('click', () => {
-    panel.classList.remove('open');
-    panel.setAttribute('aria-hidden', 'true');
-  });
+  function useChip(el) {
+    const map = {
+      '🍳 Log breakfast': 'I had ',
+      '🏃 Log a run':     'I ran for ',
+      '⚖️ Log my weight':  'I weigh ',
+      '⏱️ Start fasting':  'Start my fast',
+      '🛑 End my fast':   'End my fast',
+    };
+    input.value = map[el.textContent] || '';
+    input.focus();
+  }
 
   async function sendMessage() {
     const msg = input.value.trim();
@@ -399,6 +507,7 @@
     addMsg(msg, 'user');
     const typing = addTyping();
     sendBtn.disabled = true;
+    input.disabled   = true;
     try {
       const res  = await fetch('/api/chat', {
         method:  'POST',
@@ -408,7 +517,6 @@
       const data = await res.json();
       typing.remove();
       addMsg(data.reply, 'bot');
-      // Reload page if data was logged so stats update
       if (['log_meal','log_workout','log_weight','start_fast','end_fast'].includes(data.action)) {
         setTimeout(() => location.reload(), 1800);
       }
@@ -417,6 +525,8 @@
       addMsg('Something went wrong. Please try again.', 'bot');
     }
     sendBtn.disabled = false;
+    input.disabled   = false;
+    input.focus();
   }
 
   sendBtn.addEventListener('click', sendMessage);
