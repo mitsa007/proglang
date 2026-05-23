@@ -183,13 +183,9 @@
           {% if chart_labels %}
             <div class="chart-wrap">
               <canvas id="weightChart"
-                data-labels="{{ chart_labels | tojson }}"
-                data-weights="{{ chart_weights | tojson }}">
+                data-labels='{{ chart_labels | tojson }}'
+                data-weights='{{ chart_weights | tojson }}'>
               </canvas>
-              <div class="chart-coming-soon">
-                <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                Coming Soon
-              </div>
             </div>
           {% else %}
             <div class="empty-state"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Chart will appear after 2+ entries.</div>
