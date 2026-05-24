@@ -1,3 +1,9 @@
+## Live Demo
+
+Access the deployed web app here:
+
+https://vitcheck-a-smart-fitness-webpage.onrender.com/
+
 # Smart Fitness & Nutrition Tracker
 
 A Python Flask web application that helps users track workouts, meals, body weight, and fitness progress. The system uses AI-assisted recommendations and linear regression-style prediction to help users understand their weekly fitness progress and make better health decisions.
