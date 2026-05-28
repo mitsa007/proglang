@@ -263,7 +263,7 @@ def create_profile():
             'weight':  float(w),
         })
     login_user(User(user_data))
-    return redirect(url_for('overview'))
+    return redirect(url_for('register'))
 
 
 # ── Dashboard / Overview ──────────────────────────────────────────────────────
